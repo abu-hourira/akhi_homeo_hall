@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="bn" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>আঁখি হোমিও হল - ডিজিটাল ফার্মেসি ও প্রেসক্রিপশন নোটবুক | Akhi Homeo Hall</title>
+  <meta name="description" content="হোমিওপ্যাথিক ফার্মেসি ও চিকিৎসকদের জন্য নিরাপদ ডেটাবেজযুক্ত ডিজিটাল প্রেসক্রিপশন, রোগীর কেস হিস্ট্রি ও আয়-ব্যয় নোটবুক।">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- ============================================== -->
+  <!-- 🔒 SECURITY LOCK SCREEN & QUICK PIN OVERLAY    -->
+  <!-- ============================================== -->
+  <div class="security-lock-screen" id="security-lock-screen">
+    <div class="lock-card">
+      <div class="lock-avatar-icon">🌿</div>
+      <h2>আঁখি হোমিও হল</h2>
+      <p>নিরাপদ ফার্মেসি নোটবুক আনলক করতে পিন কোড দিন</p>
+
+      <!-- PIN Code UI -->
+      <div id="pin-login-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
+        <div class="pin-display-dots">
+          <div class="pin-dot" id="p-dot-1"></div>
+          <div class="pin-dot" id="p-dot-2"></div>
+          <div class="pin-dot" id="p-dot-3"></div>
+          <div class="pin-dot" id="p-dot-4"></div>
+        </div>
+
+        <div class="pin-pad-grid">
+          <button class="pin-btn" onclick="enterPinDigit('1')">1</button>
+          <button class="pin-btn" onclick="enterPinDigit('2')">2</button>
+          <button class="pin-btn" onclick="enterPinDigit('3')">3</button>
+          <button class="pin-btn" onclick="enterPinDigit('4')">4</button>
+          <button class="pin-btn" onclick="enterPinDigit('5')">5</button>
+          <button class="pin-btn" onclick="enterPinDigit('6')">6</button>
+          <button class="pin-btn" onclick="enterPinDigit('7')">7</button>
+          <button class="pin-btn" onclick="enterPinDigit('8')">8</button>
+          <button class="pin-btn" onclick="enterPinDigit('9')">9</button>
+          <button class="pin-btn" style="font-size: 0.9rem; color: var(--rose-600);" onclick="clearPin()">মুছুন</button>
+          <button class="pin-btn" onclick="enterPinDigit('0')">0</button>
+          <button class="pin-btn" style="font-size: 1.1rem; color: var(--primary-600);" onclick="submitPinUnlock()">
+            <i data-lucide="check"></i>
+          </button>
+        </div>
+
+        <button class="login-mode-switch" onclick="switchLoginMode('password')">
+          <i data-lucide="key-round" style="width: 14px; height: 14px; vertical-align: middle;"></i> পাসওয়ার্ড দিয়ে লগইন করুন
+        </button>
+        <div style="font-size: 0.74rem; color: var(--text-muted); margin-top: 10px;">
+          (ডিফল্ট পিন: <strong>1234</strong> | ইউজার: <strong>admin</strong> পাসওয়ার্ড: <strong>admin123</strong>)
+        </div>
+      </div>
+
+      <!-- Password Login Form -->
+      <form class="password-login-form" id="password-login-form" onsubmit="submitPasswordLogin(event)">
+        <div class="form-group" style="text-align: left;">
+          <label class="form-label">ইউজারনেম (Username)</label>
+          <input type="text" id="login-username" class="form-control" value="admin" required>
+        </div>
+        <div class="form-group" style="text-align: left;">
+          <label class="form-label">পাসওয়ার্ড (Password)</label>
+          <input type="password" id="login-password" class="form-control" placeholder="পাসওয়ার্ড লিখুন" required>
+        </div>
+        <button type="submit" class="btn-primary" style="justify-content: center; width: 100%;">
+          <i data-lucide="log-in"></i> লগইন করুন
+        </button>
+        <button type="button" class="login-mode-switch" onclick="switchLoginMode('pin')">
+          <i data-lucide="hash" style="width: 14px; height: 14px; vertical-align: middle;"></i> পিন কোড দিয়ে আনলক করুন
+        </button>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- 🖥️ MAIN APPLICATION SHELL                       -->
+  <!-- ============================================== -->
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="app-sidebar" id="app-sidebar">
+      <div class="brand-section">
+        <div class="brand-logo-icon">🌿</div>
+        <div class="brand-info">
+          <h1 data-i18n="brand_title">আঁখি হোমিও হল</h1>
+          <span data-i18n="brand_sub">নিরাপদ কেস ও ফার্মেসি নোটবুক</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="tab-patients" id="nav-btn-patients">
+          <span class="nav-icon"><i data-lucide="book-user"></i></span>
+          <span data-i18n="nav_patients">রোগীর কেস ডায়েরি</span>
+          <span class="nav-badge" id="badge-patient-count">0</span>
+        </button>
+
+        <button class="nav-item" data-tab="tab-prescriptions" id="nav-btn-prescriptions">
+          <span class="nav-icon"><i data-lucide="file-text"></i></span>
+          <span data-i18n="nav_prescriptions">প্রেসক্রিপশন ও মেমো</span>
+        </button>
+
+        <button class="nav-item" data-tab="tab-ledger" id="nav-btn-ledger">
+          <span class="nav-icon"><i data-lucide="calculator"></i></span>
+          <span data-i18n="nav_ledger">দৈনিক আয়-ব্যয়</span>
+          <span class="nav-badge" id="badge-today-txn">0</span>
+        </button>
+
+        <button class="nav-item" data-tab="tab-due" id="nav-btn-due">
+          <span class="nav-icon"><i data-lucide="wallet-cards"></i></span>
+          <span data-i18n="nav_due">বাকি খাতা (Due)</span>
+          <span class="nav-badge" id="badge-due-count" style="background:#f43f5e; color:white;">0</span>
+        </button>
+
+        <button class="nav-item" data-tab="tab-remedies" id="nav-btn-remedies">
+          <span class="nav-icon"><i data-lucide="flask-conical"></i></span>
+          <span data-i18n="nav_remedies">ঔষধ ও র‍্যাক নোট</span>
+          <span class="nav-badge" id="badge-remedy-count">40</span>
+        </button>
+
+        <button class="nav-item" data-tab="tab-backup" id="nav-btn-backup">
+          <span class="nav-icon"><i data-lucide="shield-check"></i></span>
+          <span data-i18n="nav_backup">নিরাপত্তা ও সেটিংস</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="quick-stats-pill">
+          <span data-i18n="today_collection">আজকের জমা:</span>
+          <strong id="sidebar-today-total">৳ 0</strong>
+        </div>
+        <button class="btn-primary" style="width: 100%; justify-content: center;" onclick="openPatientModal()">
+          <i data-lucide="plus-circle"></i>
+          <span data-i18n="btn_new_patient">নতুন রোগী যোগ</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-wrapper">
+      
+      <!-- Top Application Header -->
+      <header class="top-header">
+        <div class="header-left">
+          <button class="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="Toggle Navigation">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="page-title-badge">
+            <h2 id="current-tab-title" data-i18n="nav_patients">রোগীর কেস ডায়েরি</h2>
+          </div>
+          <div class="header-date-badge">
+            <i data-lucide="calendar"></i>
+            <span id="live-date-str">...</span>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button class="lang-switch-btn" id="btn-lang-toggle" onclick="toggleLanguage()">
+            <i data-lucide="languages"></i>
+            <span id="current-lang-label">বাংলা / English</span>
+          </button>
+
+          <button class="btn-icon" id="btn-theme-toggle" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+            <i data-lucide="moon" id="theme-icon"></i>
+          </button>
+
+          <button class="btn-icon btn-lock" onclick="lockNotebook()" title="নোটবুক লক করুন (Lock Screen)">
+            <i data-lucide="lock"></i>
+          </button>
+
+          <button class="btn-primary" onclick="openPatientModal()">
+            <i data-lucide="user-plus"></i>
+            <span class="hide-mobile" data-i18n="btn_new_entry">নতুন এন্ট্রি</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Body Container -->
+      <div class="content-body">
+        
+        <!-- Quick Financial & Patient Stats -->
+        <section class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon-wrapper stat-emerald">
+              <i data-lucide="users"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label" data-i18n="stat_total_patients">মোট নিবন্ধিত রোগী</span>
+              <span class="stat-value" id="stat-val-patients">0</span>
+              <span class="stat-sub" id="stat-sub-patients">আজকে নতুন: 0 জন</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper stat-blue">
+              <i data-lucide="badge-dollar-sign"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label" data-i18n="stat_today_sales">আজকের মোট বিক্রয়</span>
+              <span class="stat-value" id="stat-val-sales">৳ 0</span>
+              <span class="stat-sub" id="stat-sub-sales">নগদ সংগ্রহ</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper stat-rose">
+              <i data-lucide="clock-alert"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label" data-i18n="stat_total_due">মোট বকেয়া (বাকি)</span>
+              <span class="stat-value" id="stat-val-due">৳ 0</span>
+              <span class="stat-sub" id="stat-sub-due">রোগীর কাছে পাওনা</span>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-icon-wrapper stat-amber">
+              <i data-lucide="pill"></i>
+            </div>
+            <div class="stat-content">
+              <span class="stat-label" data-i18n="stat_total_remedies">মজুদ হোমিও ঔষধ</span>
+              <span class="stat-value" id="stat-val-remedies">40</span>
+              <span class="stat-sub" data-i18n="stat_remedy_sub">র‍্যাক ও পোটেন্সি তালিকা</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 1: PATIENT CASE DIARY -->
+        <section class="tab-content" id="tab-patients">
+          <div class="section-toolbar">
+            <div class="search-box-wrapper">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" id="patient-search-input" class="search-input" placeholder="রোগীর নাম, মোবাইল নম্বর বা রোগের লক্ষণ লিখে খুঁজুন..." oninput="filterPatients()">
+            </div>
+            <div class="filter-group">
+              <button class="filter-btn active" onclick="setPatientFilter('all', this)" data-i18n="filter_all">সকল রোগী</button>
+              <button class="filter-btn" onclick="setPatientFilter('today', this)" data-i18n="filter_today">আজকের রোগী</button>
+              <button class="filter-btn" onclick="setPatientFilter('due', this)" data-i18n="filter_due_only">বাকি আছে</button>
+              <button class="btn-secondary" onclick="exportPatientsCSV()">
+                <i data-lucide="download"></i> <span data-i18n="export_csv">এক্সেল/CSV ডাউনলোড</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="patient-grid" id="patient-cards-container">
+            <!-- Rendered by app.js -->
+          </div>
+        </section>
+
+        <!-- TAB 2: PRESCRIPTION & MEMO PAD -->
+        <section class="tab-content" id="tab-prescriptions" style="display: none;">
+          <div class="section-toolbar">
+            <div class="search-box-wrapper">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" id="rx-search-input" class="search-input" placeholder="প্রেসক্রিপশন বা মেমো খুঁজুন..." oninput="filterPrescriptions()">
+            </div>
+            <button class="btn-primary" onclick="openNewPrescriptionModal()">
+              <i data-lucide="file-plus"></i> <span data-i18n="btn_create_prescription">নতুন প্রেসক্রিপশন তৈরি</span>
+            </button>
+          </div>
+
+          <div class="ledger-container">
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="th_date">তারিখ</th>
+                    <th data-i18n="th_reg">রেজিস্ট্রেশন নং</th>
+                    <th data-i18n="th_patient_name">রোগীর নাম</th>
+                    <th data-i18n="th_medicines">ঔষধের তালিকা</th>
+                    <th data-i18n="th_total">মোট বিল</th>
+                    <th data-i18n="th_paid">পরিশোধ</th>
+                    <th data-i18n="th_due">বাকি</th>
+                    <th data-i18n="th_actions">অ্যাকশন</th>
+                  </tr>
+                </thead>
+                <tbody id="prescription-table-body">
+                  <!-- Rendered by app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 3: DAILY LEDGER & CASH BOOK -->
+        <section class="tab-content" id="tab-ledger" style="display: none;">
+          <div class="section-toolbar">
+            <div class="search-box-wrapper">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" id="ledger-search-input" class="search-input" placeholder="আয়-ব্যয়ের বিবরণ বা রোগীর নাম..." oninput="filterTransactions()">
+            </div>
+            <div class="filter-group">
+              <button class="btn-primary" onclick="openTransactionModal('sale')">
+                <i data-lucide="plus"></i> <span data-i18n="btn_add_sale">বিক্রয় এন্ট্রি</span>
+              </button>
+              <button class="btn-secondary" onclick="openTransactionModal('expense')">
+                <i data-lucide="minus"></i> <span data-i18n="btn_add_expense">দোকান খরচ এন্ট্রি</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="ledger-container">
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="th_date">তারিখ</th>
+                    <th data-i18n="th_type">ধরন</th>
+                    <th data-i18n="th_category">ক্যাটাগরি / রোগী</th>
+                    <th data-i18n="th_mobile">মোবাইল</th>
+                    <th data-i18n="th_note">নোট / বিবরণ</th>
+                    <th data-i18n="th_amount">পরিমাণ (৳)</th>
+                    <th data-i18n="th_status">অবস্থা</th>
+                    <th data-i18n="th_actions">অ্যাকশন</th>
+                  </tr>
+                </thead>
+                <tbody id="ledger-table-body">
+                  <!-- Rendered by app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 4: DUE REGISTER (বাকি খাতা) -->
+        <section class="tab-content" id="tab-due" style="display: none;">
+          <div class="section-toolbar">
+            <div class="search-box-wrapper">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" id="due-search-input" class="search-input" placeholder="বাকি থাকা রোগীর নাম বা মোবাইল নম্বর..." oninput="filterDueList()">
+            </div>
+          </div>
+
+          <div class="ledger-container">
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="th_patient_name">রোগীর নাম</th>
+                    <th data-i18n="th_mobile">মোবাইল নম্বর</th>
+                    <th data-i18n="th_address">ঠিকানা</th>
+                    <th data-i18n="th_last_date">সর্বশেষ তারিখ</th>
+                    <th data-i18n="th_due_amount">বকেয়া পরিমাণ (৳)</th>
+                    <th data-i18n="th_actions">পরিশোধ বা অ্যাকশন</th>
+                  </tr>
+                </thead>
+                <tbody id="due-table-body">
+                  <!-- Rendered by app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 5: REMEDIES & RACK DIRECTORY -->
+        <section class="tab-content" id="tab-remedies" style="display: none;">
+          <div class="section-toolbar">
+            <div class="search-box-wrapper">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" id="remedy-search-input" class="search-input" placeholder="হোমিও ঔষধের নাম, বাংলা নাম বা লক্ষণ দিয়ে খুঁজুন..." oninput="filterRemedies()">
+            </div>
+            <button class="btn-primary" onclick="openRemedyModal()">
+              <i data-lucide="plus"></i> <span data-i18n="btn_add_remedy">নতুন ঔষধ যোগ করুন</span>
+            </button>
+          </div>
+
+          <div class="remedy-grid" id="remedies-container">
+            <!-- Rendered by app.js -->
+          </div>
+        </section>
+
+        <!-- TAB 6: SECURITY & SETTINGS -->
+        <section class="tab-content" id="tab-backup" style="display: none;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+            
+            <!-- Security & Password Setup -->
+            <div class="stat-card" style="flex-direction: column; align-items: stretch; gap: 14px;">
+              <h3 style="font-size: 1.1rem; color: var(--primary-800); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="shield-check"></i> <span>লগইন পাসওয়ার্ড ও পিন পরিবর্তন</span>
+              </h3>
+              
+              <div class="form-group">
+                <label class="form-label">নতুন ৪-ডিজিট কুইক পিন (Quick PIN):</label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="password" id="setting-new-pin" maxlength="6" class="form-control" placeholder="যেমন: 1234">
+                  <button class="btn-secondary" onclick="updateSecurityPin()">আপডেট পিন</button>
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border-color);">
+                <label class="form-label">বর্তমান পাসওয়ার্ড:</label>
+                <input type="password" id="setting-old-pass" class="form-control" placeholder="বর্তমান পাসওয়ার্ড">
+              </div>
+              <div class="form-group">
+                <label class="form-label">নতুন পাসওয়ার্ড:</label>
+                <input type="password" id="setting-new-pass" class="form-control" placeholder="নতুন পাসওয়ার্ড">
+              </div>
+              <button class="btn-primary" onclick="updateSecurityPassword()">
+                <i data-lucide="key"></i> <span>পাসওয়ার্ড পরিবর্তন করুন</span>
+              </button>
+            </div>
+
+            <!-- Database Backup & Download -->
+            <div class="stat-card" style="flex-direction: column; align-items: stretch; gap: 14px;">
+              <h3 style="font-size: 1.1rem; color: var(--teal-700); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="database"></i> <span>SQLite ডাটাবেজ ব্যাকআপ</span>
+              </h3>
+              <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                আপনার ডেটাবেজে সরাসরি SQLite (`akhi_homeo.db`) ফাইল হিসেবে সংরক্ষিত থাকে। যে কোনো সময় সম্পূর্ণ ডাটাবেজ ব্যাকআপ ডাউনলোড করতে পারেন।
+              </p>
+              <button class="btn-primary" onclick="downloadDatabaseFile()">
+                <i data-lucide="download"></i> <span>SQLite ডাটাবেজ ফাইল ডাউনলোড (.db)</span>
+              </button>
+              <button class="btn-secondary" onclick="downloadBackupJSON()">
+                <i data-lucide="file-json"></i> <span>JSON ব্যাকআপ ডাউনলোড</span>
+              </button>
+            </div>
+
+            <!-- Pharmacy & Clinic Info Settings -->
+            <div class="stat-card" style="flex-direction: column; align-items: stretch; gap: 14px;">
+              <h3 style="font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="store"></i> <span data-i18n="clinic_info_title">ফার্মেসি ও চিকিৎসকের তথ্য সেটিংস</span>
+              </h3>
+              <div class="form-group">
+                <label class="form-label" data-i18n="label_pharmacy_name">ফার্মেসির নাম:</label>
+                <input type="text" id="setting-pharmacy-name" class="form-control" value="আঁখি হোমিও হল (Akhi Homeo Hall)">
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="label_doctor_name">চিকিৎসকের নাম ও পদবী:</label>
+                <input type="text" id="setting-doctor-name" class="form-control" value="ডাঃ মোঃ আবু হুরায়রা (DHMS, RHMP)">
+              </div>
+              <div class="form-group">
+                <label class="form-label" data-i18n="label_clinic_address">ঠিকানা ও ফোন নম্বর:</label>
+                <input type="text" id="setting-clinic-address" class="form-control" value="মিরপুর-১০, ঢাকা | মোবাইল: 01712-000000">
+              </div>
+              <button class="btn-primary" onclick="saveClinicSettings()">
+                <i data-lucide="save"></i> <span data-i18n="btn_save_settings">তথ্য সংরক্ষণ করুন</span>
+              </button>
+            </div>
+
+            <!-- Security Audit Log Table -->
+            <div class="stat-card" style="grid-column: 1/-1; flex-direction: column; align-items: stretch; gap: 14px;">
+              <h3 style="font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between;">
+                <span style="display: flex; align-items: center; gap: 8px;"><i data-lucide="clipboard-list"></i> সিকিউরিটি অডিট লগ (Security Activity Log)</span>
+                <button class="btn-secondary" style="font-size: 0.8rem; padding: 4px 8px;" onclick="loadAuditLogs()">
+                  <i data-lucide="refresh-cw"></i> রিফ্রেশ
+                </button>
+              </h3>
+              <div class="table-responsive" style="max-height: 240px; overflow-y: auto;">
+                <table class="custom-table" style="font-size: 0.82rem;">
+                  <thead>
+                    <tr>
+                      <th>সময় (Timestamp)</th>
+                      <th>অ্যাকশন</th>
+                      <th>বিবরণ (Details)</th>
+                      <th>আইপি (IP)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="audit-logs-body">
+                    <!-- Loaded via app.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+  </div>
+
+  <!-- MODAL: ADD / EDIT PATIENT & CASE NOTE -->
+  <div class="modal-backdrop" id="modal-patient">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3 id="modal-patient-title">
+          <i data-lucide="user-plus"></i> 
+          <span>রোগীর নতুন কেস ও নোট এন্ট্রি</span>
+        </h3>
+        <button class="btn-icon" onclick="closePatientModal()"><i data-lucide="x"></i></button>
+      </div>
+      
+      <div class="modal-body">
+        <input type="hidden" id="form-patient-id">
+        
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label class="form-label">রোগীর নাম <span class="req">*</span></label>
+            <input type="text" id="form-pat-name" class="form-control" placeholder="যেমন: মো: রফিকুল ইসলাম" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">বয়স</label>
+            <input type="text" id="form-pat-age" class="form-control" placeholder="যেমন: ৩৫ বছর">
+          </div>
+          <div class="form-group">
+            <label class="form-label">লিঙ্গ</label>
+            <select id="form-pat-gender" class="form-control">
+              <option value="পুরুষ (Male)">পুরুষ (Male)</option>
+              <option value="মহিলা (Female)">মহিলা (Female)</option>
+              <option value="শিশু (Child)">শিশু (Child)</option>
+              <option value="অন্যান্য (Other)">অন্যান্য (Other)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label class="form-label">মোবাইল নম্বর <span class="req">*</span></label>
+            <input type="tel" id="form-pat-mobile" class="form-control" placeholder="০১৭০০-০০০০০০" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">রক্তের গ্রুপ (Blood Group)</label>
+            <select id="form-pat-blood" class="form-control">
+              <option value="অজানা (Unknown)">অজানা (Unknown)</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">ঠিকানা / গ্রাম / এলাকা</label>
+            <input type="text" id="form-pat-address" class="form-control" placeholder="যেমন: মিরপুর, ঢাকা">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">প্রধান সমস্যা / রোগ লক্ষণ (Chief Complaints)</label>
+          <textarea id="form-pat-complaints" class="form-control" placeholder="রোগীর প্রধান কষ্ট বা রোগ সম্পর্কিত লক্ষণসমূহ লিখুন..."></textarea>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">শারীরিক ও মানসিক লক্ষণ (Mind & Physical Generals)</label>
+            <textarea id="form-pat-symptoms" class="form-control" placeholder="মেজাজ, ঘুম, ঘাম, পিপাসা, ক্ষুধা, মল-মূত্র ইত্যাদি..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">হ্রাস-বৃদ্ধি লক্ষণ (Modalities: &lt; Agg / &gt; Amel)</label>
+            <textarea id="form-pat-modalities" class="form-control" placeholder="কখন বাড়ে (যেমন ঠান্ডায়, নড়াচড়ায়) ও কখন কমে (বিশ্রামে, গরমে)..."></textarea>
+          </div>
+        </div>
+
+        <!-- Prescription & Medicine Prescribed Builder -->
+        <div class="rx-builder-section">
+          <div class="rx-builder-header">
+            <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--primary-800); display: flex; align-items: center; gap: 6px;">
+              <i data-lucide="pill"></i> ব্যবস্থাপত্র / ঔষধ নির্বাচন (Prescribed Remedies)
+            </h4>
+            <button type="button" class="btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;" onclick="addPrescriptionMedRow()">
+              <i data-lucide="plus"></i> আরও ঔষধ যোগ
+            </button>
+          </div>
+
+          <div id="rx-medicines-list">
+            <!-- Dynamic rows -->
+          </div>
+
+          <div class="form-grid-2" style="margin-top: 12px;">
+            <div class="form-group">
+              <label class="form-label">পরামর্শ ও পথ্য নির্দেশ (Advice / Diet)</label>
+              <input type="text" id="form-pat-advice" class="form-control" placeholder="যেমন: তেল-ঝাল পরিহার, গরম পানি সেবন">
+            </div>
+            <div class="form-group">
+              <label class="form-label">পরবর্তী সাক্ষাতের তারিখ (Follow-up Date)</label>
+              <input type="date" id="form-pat-nextvisit" class="form-control">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label class="form-label">মোট ফি ও ঔষধ মূল্য (৳)</label>
+            <input type="number" id="form-pat-totalfee" class="form-control" value="300" oninput="calculateModalDue()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">নগদ গ্রহণ (৳)</label>
+            <input type="number" id="form-pat-paid" class="form-control" value="300" oninput="calculateModalDue()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">বাকি পরিমাণ (৳)</label>
+            <input type="number" id="form-pat-due" class="form-control" value="0" readonly style="background: var(--bg-main); font-weight: 700; color: var(--rose-600);">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">বিশেষ গোপন নোট / মন্তব্য (Private Doctor Notes)</label>
+          <input type="text" id="form-pat-notes" class="form-control" placeholder="রোগীর স্বভাব বা পরবর্তী প্ল্যানিং নোট...">
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closePatientModal()">বাতিল</button>
+        <button type="button" class="btn-primary" onclick="savePatientCase()">
+          <i data-lucide="check"></i> সংরক্ষণ করুন (Save Note)
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD TRANSACTION -->
+  <div class="modal-backdrop" id="modal-transaction">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-txn-title"><i data-lucide="badge-dollar-sign"></i> <span>লেনদেন এন্ট্রি</span></h3>
+        <button class="btn-icon" onclick="closeTransactionModal()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="form-txn-type" value="sale">
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">তারিখ</label>
+            <input type="date" id="form-txn-date" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ক্যাটাগরি</label>
+            <input type="text" id="form-txn-category" class="form-control" placeholder="যেমন: ঔষধ বিক্রয় / দোকান ভাড়া">
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">রোগী বা বিবরণকারী নাম</label>
+            <input type="text" id="form-txn-name" class="form-control" placeholder="নাম লিখুন">
+          </div>
+          <div class="form-group">
+            <label class="form-label">মোবাইল নম্বর</label>
+            <input type="tel" id="form-txn-mobile" class="form-control" placeholder="০১৭০০-০০০০০০">
+          </div>
+        </div>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label class="form-label">মোট টাকা (৳)</label>
+            <input type="number" id="form-txn-amount" class="form-control" value="0" oninput="calculateTxnDue()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">পরিশোধ (৳)</label>
+            <input type="number" id="form-txn-paid" class="form-control" value="0" oninput="calculateTxnDue()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">বাকি (৳)</label>
+            <input type="number" id="form-txn-due" class="form-control" value="0" readonly style="font-weight: 700; color: var(--rose-600);">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">নোট বা ঔষধের নাম</label>
+          <input type="text" id="form-txn-note" class="form-control" placeholder="বিস্তারিত বিবরণ...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeTransactionModal()">বাতিল</button>
+        <button class="btn-primary" onclick="saveTransaction()"><i data-lucide="check"></i> সংরক্ষণ করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD REMEDY / MEDICINE -->
+  <div class="modal-backdrop" id="modal-remedy">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i data-lucide="flask-conical"></i> <span>নতুন হোমিওপ্যাথিক ঔষধ যোগ</span></h3>
+        <button class="btn-icon" onclick="closeRemedyModal()"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label">ঔষধের ল্যাটিন/ইংরেজি নাম <span class="req">*</span></label>
+            <input type="text" id="form-rem-name" class="form-control" placeholder="যেমন: Thuja Occidentalis" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">বাংলা নাম</label>
+            <input type="text" id="form-rem-bangla" class="form-control" placeholder="যেমন: থুজা অক্সিডেন্টালিস">
+          </div>
+        </div>
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label class="form-label">ধরন (Category)</label>
+            <select id="form-rem-cat" class="form-control">
+              <option value="Dilution">Dilution (ডাইলিউশন)</option>
+              <option value="Mother Tincture">Mother Tincture / Q (মাদার টিংচার)</option>
+              <option value="Biochemic">Biochemic (বায়োকেমিক)</option>
+              <option value="Bio-Combination">Bio-Combination</option>
+              <option value="Patent Drop/Syrup">Patent Drop/Syrup</option>
+              <option value="Ointment">Ointment (মলম)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">র‍্যাক / ড্রয়ার নং</label>
+            <input type="text" id="form-rem-rack" class="form-control" placeholder="যেমন: A-01, MT-03">
+          </div>
+          <div class="form-group">
+            <label class="form-label">মজুদ সংখ্যা (Stock)</label>
+            <input type="number" id="form-rem-stock" class="form-control" value="10">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">পোটেন্সি তালিকা (কমা দিয়ে আলাদা করুন)</label>
+          <input type="text" id="form-rem-potencies" class="form-control" value="Q, 30C, 200C, 1M">
+        </div>
+        <div class="form-group">
+          <label class="form-label">প্রধান রোগ লক্ষণ ও ব্যবহার নির্দেশিকা (Indications)</label>
+          <textarea id="form-rem-indication" class="form-control" placeholder="ঔষধটি কোন কোন লক্ষণে কার্যকরী তা সংক্ষেপে লিখুন..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeRemedyModal()">বাতিল</button>
+        <button class="btn-primary" onclick="saveRemedy()"><i data-lucide="check"></i> সংরক্ষণ করুন</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRINTABLE PRESCRIPTION & CASH MEMO TEMPLATE -->
+  <div id="print-template-container">
+    <div class="memo-pad" id="printable-memo-content">
+      <!-- Populated dynamically by app.js before calling window.print() -->
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="remedies_db.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
