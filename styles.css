@@ -1,4 +1,4 @@
-/* Akhi Homeo Hall - Premium Homeopathic Pharmacy Digital Notebook Stylesheet */
+/* Akhi Homeo Hall - Ultra Premium Mobile & Desktop Homeopathic Pharmacy Stylesheet */
 
 @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
 
@@ -42,25 +42,25 @@
   --text-muted: #94a3b8;
   --text-white: #ffffff;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 22px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 26px;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --shadow-glow: 0 0 15px rgba(16, 185, 129, 0.2);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 12px 20px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 0 18px rgba(16, 185, 129, 0.25);
 
-  --font-family: 'Hind Siliguri', 'Outfit', sans-serif;
-  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --font-family: 'Hind Siliguri', 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 [data-theme="dark"] {
-  --bg-main: #0b1317;
-  --bg-card: #132228;
-  --bg-card-hover: #182c33;
-  --border-color: #1e3842;
+  --bg-main: #091114;
+  --bg-card: #112026;
+  --bg-card-hover: #162930;
+  --border-color: #1a353f;
   --border-focus: #14b8a6;
   --text-primary: #f1f5f9;
   --text-secondary: #cbd5e1;
@@ -70,14 +70,15 @@
   --amber-50: #291d05;
   --rose-50: #2b0b14;
   --blue-50: #091f3a;
-  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.5);
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -125,13 +126,13 @@ body {
 .brand-logo-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: linear-gradient(135deg, var(--primary-600), var(--teal-700));
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
   font-size: 22px;
   flex-shrink: 0;
 }
@@ -259,24 +260,32 @@ body {
   position: sticky;
   top: 0;
   z-index: 40;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
 }
 
 .header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .mobile-menu-btn {
   display: none;
-  background: transparent;
-  border: none;
-  font-size: 1.3rem;
-  color: var(--text-primary);
+  background: var(--primary-50);
+  border: 1px solid var(--primary-200);
+  font-size: 1.2rem;
+  color: var(--primary-800);
   cursor: pointer;
-  padding: 6px;
+  padding: 7px;
   border-radius: var(--radius-sm);
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="dark"] .mobile-menu-btn {
+  background: #14352b;
+  color: #34d399;
+  border-color: #1b493b;
 }
 
 .page-title-badge h2 {
@@ -300,7 +309,7 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .btn-icon {
@@ -377,6 +386,10 @@ body {
   background: linear-gradient(135deg, var(--primary-700), var(--teal-900));
 }
 
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
 .btn-secondary {
   background: var(--bg-card);
   color: var(--text-primary);
@@ -415,9 +428,57 @@ body {
   color: white;
 }
 
+/* --- MOBILE QUICK ACTION CHIPS BAR --- */
+.mobile-action-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 14px 4px 14px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.mobile-action-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.action-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 30px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.action-chip:active {
+  transform: scale(0.95);
+  background: var(--primary-50);
+}
+
+.action-chip.chip-emerald {
+  background: linear-gradient(135deg, var(--primary-50), rgba(20, 184, 166, 0.15));
+  color: var(--primary-800);
+  border-color: var(--primary-200);
+}
+
+[data-theme="dark"] .action-chip.chip-emerald {
+  background: #113429;
+  color: #34d399;
+  border-color: #1e5845;
+}
+
 /* Main Content Body Area */
 .content-body {
-  padding: 24px;
+  padding: 20px 24px;
   flex: 1;
 }
 
@@ -426,17 +487,17 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .stat-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 18px 20px;
+  padding: 16px 18px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   box-shadow: var(--shadow-sm);
   transition: var(--transition);
   position: relative;
@@ -450,13 +511,13 @@ body {
 }
 
 .stat-icon-wrapper {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.45rem;
+  font-size: 1.4rem;
   flex-shrink: 0;
 }
 
@@ -471,13 +532,13 @@ body {
 }
 
 .stat-label {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   color: var(--text-secondary);
   font-weight: 500;
 }
 
 .stat-value {
-  font-size: 1.45rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--text-primary);
   margin-top: 2px;
@@ -485,9 +546,9 @@ body {
 }
 
 .stat-sub {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 /* Section Header Bar */
@@ -496,8 +557,8 @@ body {
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
 .search-box-wrapper {
@@ -505,20 +566,21 @@ body {
   min-width: 280px;
   flex: 1;
   max-width: 480px;
+  display: flex;
+  align-items: center;
 }
 
 .search-icon {
   position: absolute;
   left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
   color: var(--text-muted);
   font-size: 1rem;
+  pointer-events: none;
 }
 
 .search-input {
   width: 100%;
-  padding: 10px 16px 10px 42px;
+  padding: 10px 42px 10px 42px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--bg-card);
@@ -532,6 +594,31 @@ body {
   outline: none;
   border-color: var(--primary-500);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.voice-search-btn {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--primary-600);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.voice-search-btn.listening {
+  color: var(--rose-600);
+  animation: pulseMic 1s infinite alternate;
+}
+
+@keyframes pulseMic {
+  from { transform: scale(1); filter: drop-shadow(0 0 2px rgba(244, 63, 94, 0.4)); }
+  to { transform: scale(1.2); filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.8)); }
 }
 
 .filter-group {
@@ -563,14 +650,14 @@ body {
 .patient-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 18px;
+  gap: 16px;
 }
 
 .patient-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 18px;
+  padding: 16px;
   box-shadow: var(--shadow-sm);
   transition: var(--transition);
   display: flex;
@@ -597,7 +684,7 @@ body {
 .patient-avatar {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--primary-100);
   color: var(--primary-700);
   font-weight: 700;
@@ -618,7 +705,7 @@ body {
 }
 
 .patient-main-info h3 {
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.3;
@@ -627,7 +714,7 @@ body {
 .patient-meta-tags {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   margin-top: 4px;
 }
@@ -636,7 +723,7 @@ body {
   font-size: 0.72rem;
   font-weight: 600;
   padding: 2px 7px;
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--bg-main);
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
@@ -656,10 +743,10 @@ body {
 .patient-body-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   font-size: 0.88rem;
   color: var(--text-secondary);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   flex: 1;
 }
 
@@ -715,16 +802,17 @@ body {
 
 .rx-med-pill {
   display: inline-block;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 4px;
   margin-right: 4px;
   margin-bottom: 4px;
   font-weight: 500;
 }
 
+/* Quick Action Tray on Patient Card */
 .patient-card-footer {
   display: flex;
   align-items: center;
@@ -741,14 +829,44 @@ body {
   color: var(--rose-600);
   background: var(--rose-50);
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .patient-card-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   margin-left: auto;
+}
+
+.btn-card-action {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
+.btn-card-action:active {
+  transform: scale(0.92);
+}
+
+.btn-card-action.call {
+  color: #059669;
+  background: var(--primary-50);
+}
+
+.btn-card-action.whatsapp {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
 }
 
 /* Ledger & Table Layouts */
@@ -776,7 +894,7 @@ body {
   background: var(--primary-50);
   color: var(--primary-900);
   font-weight: 700;
-  padding: 12px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
 }
@@ -787,7 +905,7 @@ body {
 }
 
 .custom-table td {
-  padding: 12px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-secondary);
   vertical-align: middle;
@@ -834,7 +952,7 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  padding: 16px;
+  padding: 15px;
   box-shadow: var(--shadow-sm);
   transition: var(--transition);
   display: flex;
@@ -851,11 +969,11 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .remedy-name {
-  font-size: 1rem;
+  font-size: 0.98rem;
   font-weight: 700;
   color: var(--primary-800);
 }
@@ -871,20 +989,20 @@ body {
 }
 
 .rack-badge {
-  background: var(--teal-500);
+  background: var(--teal-700);
   color: white;
   font-weight: 700;
   font-size: 0.72rem;
   padding: 3px 8px;
-  border-radius: 4px;
-  letter-spacing: 0.5px;
+  border-radius: 5px;
+  letter-spacing: 0.4px;
 }
 
 .potency-tags-container {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin: 8px 0;
+  margin: 6px 0;
 }
 
 .potency-pill {
@@ -911,7 +1029,7 @@ body {
   flex: 1;
 }
 
-/* Modals & Forms */
+/* Modals & Bottom Sheet */
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -923,7 +1041,7 @@ body {
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 1200;
   padding: 16px;
   animation: fadeIn 0.2s ease-out;
 }
@@ -944,14 +1062,24 @@ body {
   border: 1px solid var(--border-color);
   animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+  position: relative;
 }
 
 .modal-card.modal-lg {
   max-width: 900px;
 }
 
+.modal-drag-handle {
+  display: none;
+  width: 42px;
+  height: 4px;
+  border-radius: 3px;
+  background: var(--border-color);
+  margin: 10px auto 0 auto;
+}
+
 .modal-header {
-  padding: 18px 24px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
@@ -969,15 +1097,15 @@ body {
 }
 
 .modal-body {
-  padding: 24px;
+  padding: 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .modal-footer {
-  padding: 14px 24px;
+  padding: 14px 20px;
   border-top: 1px solid var(--border-color);
   display: flex;
   align-items: center;
@@ -1016,7 +1144,7 @@ body {
 }
 
 .form-control {
-  padding: 9px 13px;
+  padding: 10px 13px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: var(--bg-card);
@@ -1042,7 +1170,7 @@ textarea.form-control {
   background: var(--primary-50);
   border: 1px solid var(--primary-200);
   border-radius: var(--radius-md);
-  padding: 16px;
+  padding: 14px;
 }
 
 [data-theme="dark"] .rx-builder-section {
@@ -1054,7 +1182,7 @@ textarea.form-control {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .rx-medicine-row {
@@ -1090,12 +1218,12 @@ textarea.form-control {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(6, 30, 24, 0.92);
-  backdrop-filter: blur(12px);
+  background: rgba(6, 30, 24, 0.94);
+  backdrop-filter: blur(14px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 1500;
   padding: 20px;
   transition: var(--transition);
 }
@@ -1110,9 +1238,9 @@ textarea.form-control {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
-  padding: 32px 28px;
+  padding: 28px 24px;
   width: 100%;
-  max-width: 400px;
+  max-width: 380px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
   text-align: center;
   display: flex;
@@ -1122,21 +1250,21 @@ textarea.form-control {
 }
 
 .lock-avatar-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
   background: linear-gradient(135deg, var(--primary-600), var(--teal-700));
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 1.8rem;
-  margin-bottom: 16px;
+  font-size: 1.7rem;
+  margin-bottom: 14px;
   box-shadow: 0 8px 20px rgba(5, 150, 105, 0.3);
 }
 
 .lock-card h2 {
-  font-size: 1.35rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--primary-800);
 }
@@ -1149,14 +1277,14 @@ textarea.form-control {
   font-size: 0.85rem;
   color: var(--text-secondary);
   margin-top: 4px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .pin-display-dots {
   display: flex;
   justify-content: center;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 .pin-dot {
@@ -1178,10 +1306,10 @@ textarea.form-control {
 .pin-pad-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 10px;
   width: 100%;
   max-width: 270px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .pin-btn {
@@ -1199,15 +1327,10 @@ textarea.form-control {
   justify-content: center;
 }
 
-.pin-btn:hover {
+.pin-btn:hover, .pin-btn:active {
   background: var(--primary-50);
   color: var(--primary-700);
   border-color: var(--primary-500);
-  transform: scale(1.05);
-}
-
-.pin-btn:active {
-  transform: scale(0.95);
 }
 
 .login-mode-switch {
@@ -1240,18 +1363,18 @@ textarea.form-control {
 /* Toast Notification */
 .toast-container {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: 80px;
+  right: 18px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  z-index: 1200;
+  gap: 8px;
+  z-index: 1400;
 }
 
 .toast {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  padding: 12px 18px;
+  padding: 12px 16px;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   display: flex;
@@ -1473,7 +1596,7 @@ textarea.form-control {
 @media (max-width: 768px) {
   .app-container {
     flex-direction: column;
-    padding-bottom: 70px; /* Space for bottom mobile nav */
+    padding-bottom: 78px; /* Space for bottom mobile nav */
   }
 
   .app-sidebar {
@@ -1482,7 +1605,7 @@ textarea.form-control {
     top: 0;
     bottom: 0;
     width: 280px;
-    z-index: 1100;
+    z-index: 1300;
     box-shadow: 0 0 25px rgba(0, 0, 0, 0.4);
     background: var(--bg-card);
   }
@@ -1491,14 +1614,13 @@ textarea.form-control {
     left: 0;
   }
 
-  /* Overlay backdrop for mobile sidebar */
   .sidebar-backdrop {
     display: none;
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 1050;
-    backdrop-filter: blur(3px);
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 1250;
+    backdrop-filter: blur(4px);
   }
 
   .sidebar-backdrop.active {
@@ -1526,25 +1648,26 @@ textarea.form-control {
   }
 
   .content-body {
-    padding: 14px 12px;
+    padding: 12px 10px;
   }
 
   /* Responsive Cards & Grids */
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-bottom: 16px;
+    gap: 8px;
+    margin-bottom: 14px;
   }
 
   .stat-card {
-    padding: 12px;
-    gap: 10px;
+    padding: 12px 10px;
+    gap: 8px;
+    border-radius: var(--radius-md);
   }
 
   .stat-icon-wrapper {
-    width: 38px;
-    height: 38px;
-    font-size: 1.15rem;
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
     border-radius: 10px;
   }
 
@@ -1553,7 +1676,11 @@ textarea.form-control {
   }
 
   .stat-label {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
+  }
+
+  .stat-sub {
+    display: none;
   }
 
   .patient-grid, .remedy-grid {
@@ -1585,21 +1712,25 @@ textarea.form-control {
     flex-shrink: 0;
   }
 
-  /* Mobile Modals (Bottom Sheet style) */
+  /* Mobile Modals (Smooth Bottom Sheet with Drag Handle) */
   .modal-backdrop {
     padding: 0;
     align-items: flex-end;
   }
 
   .modal-card {
-    max-height: 92vh;
+    max-height: 90vh;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     width: 100%;
   }
 
+  .modal-drag-handle {
+    display: block;
+  }
+
   .modal-body {
-    padding: 16px;
+    padding: 16px 14px;
     gap: 12px;
   }
 
@@ -1620,7 +1751,7 @@ textarea.form-control {
   .rx-medicine-row > div:nth-child(1) { grid-column: 1 / -1; }
   .rx-medicine-row > div:nth-child(3) { grid-column: 1 / -1; }
 
-  /* Mobile Bottom Navigation Bar (নিচের মূল নেভিগেশন বার) */
+  /* Mobile Bottom Navigation Bar (Glassmorphic Mobile Dock) */
   .mobile-bottom-nav {
     display: flex !important;
     position: fixed;
@@ -1630,11 +1761,11 @@ textarea.form-control {
     height: 64px;
     background: var(--bg-card);
     border-top: 1px solid var(--border-color);
-    z-index: 1000;
+    z-index: 1100;
     align-items: center;
     justify-content: space-around;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
-    backdrop-filter: blur(10px);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.09);
+    backdrop-filter: blur(14px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
@@ -1678,7 +1809,7 @@ textarea.form-control {
   .bottom-nav-btn.active::after {
     content: '';
     position: absolute;
-    bottom: 6px;
+    bottom: 5px;
     width: 18px;
     height: 3px;
     border-radius: 2px;
@@ -1689,18 +1820,18 @@ textarea.form-control {
   .mobile-fab-btn {
     display: flex !important;
     position: fixed;
-    right: 18px;
+    right: 16px;
     bottom: 76px;
     width: 52px;
     height: 52px;
     border-radius: 50%;
     background: linear-gradient(135deg, var(--primary-600), var(--teal-700));
     color: white;
-    box-shadow: 0 6px 16px rgba(5, 150, 105, 0.4);
+    box-shadow: 0 6px 18px rgba(5, 150, 105, 0.45);
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
-    z-index: 900;
+    z-index: 1050;
     border: none;
     cursor: pointer;
     transition: var(--transition);
@@ -1712,8 +1843,11 @@ textarea.form-control {
 }
 
 /* Hide mobile specific elements on desktop */
-.mobile-bottom-nav, .mobile-fab-btn {
+.mobile-bottom-nav, .mobile-fab-btn, .mobile-action-chips {
   display: none;
 }
-
-
+@media (max-width: 768px) {
+  .mobile-action-chips {
+    display: flex;
+  }
+}

@@ -592,6 +592,7 @@ function renderPatients() {
       : null;
 
     const totalPatDue = (pat.prescriptions || []).reduce((acc, rx) => acc + Number(rx.due || 0), 0);
+    const cleanPhone = (pat.mobile || '').replace(/[^0-9+]/g, '');
 
     const card = document.createElement('div');
     card.className = 'patient-card';
@@ -640,13 +641,20 @@ function renderPatients() {
         ${totalPatDue > 0 ? `<span class="patient-due-tag">বকেয়া: ৳ ${totalPatDue}</span>` : `<span style="font-size: 0.78rem; color: var(--primary-600); font-weight: 600;"><i data-lucide="check-circle-2" style="width:14px; height:14px; vertical-align:middle;"></i> পরিশোধিত</span>`}
         
         <div class="patient-card-actions">
-          <button class="btn-icon" style="width: 32px; height: 32px;" title="প্রিন্ট মেমো / প্রেসক্রিপশন" onclick="printPatientMemo('${pat.id}')">
+          ${cleanPhone ? `
+          <a href="tel:${cleanPhone}" class="btn-card-action call" title="সরাসরি ফোন করুন">
+            <i data-lucide="phone"></i>
+          </a>
+          <button class="btn-card-action whatsapp" title="হোয়াটসঅ্যাপে প্রেসক্রিপশন পাঠান" onclick="sharePrescriptionWhatsApp('${pat.id}')">
+            <i data-lucide="message-circle"></i>
+          </button>` : ''}
+          <button class="btn-card-action" title="প্রিন্ট মেমো / প্রেসক্রিপশন" onclick="printPatientMemo('${pat.id}')">
             <i data-lucide="printer"></i>
           </button>
-          <button class="btn-icon" style="width: 32px; height: 32px;" title="এডিট করুন" onclick="editPatientCase('${pat.id}')">
+          <button class="btn-card-action" title="এডিট করুন" onclick="editPatientCase('${pat.id}')">
             <i data-lucide="edit"></i>
           </button>
-          <button class="btn-icon" style="width: 32px; height: 32px; color: var(--rose-600);" title="মুছে ফেলুন" onclick="deletePatient('${pat.id}')">
+          <button class="btn-card-action" style="color: var(--rose-600);" title="মুছে ফেলুন" onclick="deletePatient('${pat.id}')">
             <i data-lucide="trash-2"></i>
           </button>
         </div>
@@ -654,6 +662,7 @@ function renderPatients() {
     `;
     container.appendChild(card);
   });
+
 
   lucide.createIcons();
 }
@@ -1601,21 +1610,103 @@ async function saveClinicSettings() {
 }
 
 // --- TOAST NOTIFICATIONS ---
-function showToast(message, type = 'success') {
-  const container = document.getElementById('toast-container');
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.innerHTML = `
-    <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i>
-    <span>${message}</span>
-  `;
-  container.appendChild(toast);
-  lucide.createIcons();
+// --- ADVANCED MOBILE UTILITIES & PWA ---
 
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(10px)';
-    toast.style.transition = 'all 0.3s ease';
-    setTimeout(() => toast.remove(), 300);
-  }, 3500);
+// 1. WhatsApp Prescription Share
+function sharePrescriptionWhatsApp(patId) {
+  const pat = AppState.patients.find(p => p.id === patId);
+  if (!pat) return;
+
+  const latestRx = (pat.prescriptions && pat.prescriptions.length > 0) ? pat.prescriptions[pat.prescriptions.length - 1] : null;
+  let text = `🌿 *${AppState.clinicSettings.pharmacyName}*\n`;
+  text += `👨‍⚕️ ${AppState.clinicSettings.doctorName}\n`;
+  text += `--------------------------------\n`;
+  text += `👤 *রোগীর নাম:* ${pat.name}\n`;
+  text += `📋 *রেজি নং:* ${pat.regNo || '-'}\n`;
+  text += `📅 *তারিখ:* ${latestRx ? latestRx.date : getTodayStr()}\n\n`;
+
+  if (latestRx && latestRx.medicines && latestRx.medicines.length > 0) {
+    text += `💊 *ব্যবস্থাপত্র (Rx):*\n`;
+    latestRx.medicines.forEach((m, idx) => {
+      text += `${idx + 1}. *${m.name}* (${m.potency || ''})\n   👉 সেবনবিধি: ${m.dosage || '-'} (${m.days || ''})\n`;
+    });
+  }
+
+  if (latestRx && latestRx.advice) {
+    text += `\n⚠️ *পরামর্শ:* ${latestRx.advice}\n`;
+  }
+  if (latestRx && latestRx.nextVisit) {
+    text += `🗓️ *পরবর্তী ভিজিট:* ${latestRx.nextVisit}\n`;
+  }
+
+  text += `\n📞 যোগাযোগ: ${AppState.clinicSettings.address}`;
+
+  const cleanPhone = (pat.mobile || '').replace(/[^0-9]/g, '');
+  let waNumber = cleanPhone;
+  if (waNumber.startsWith('01')) {
+    waNumber = '88' + waNumber;
+  }
+
+  const encodedText = encodeURIComponent(text);
+  const waUrl = waNumber ? `https://wa.me/${waNumber}?text=${encodedText}` : `https://wa.me/?text=${encodedText}`;
+  window.open(waUrl, '_blank');
+  showToast('হোয়াটসঅ্যাপে প্রেসক্রিপশন পাঠানো হচ্ছে...');
 }
+
+// 2. Mobile Voice Search (বাংলা ও ইংরেজি ভয়েস সার্চ)
+function startVoiceSearch(targetInputId, btnElem) {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    showToast('আপনার ব্রাউজারে ভয়েস সার্চ সাপোর্ট নেই।', 'error');
+    return;
+  }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SpeechRecognition();
+  recognition.lang = AppState.currentLang === 'bn' ? 'bn-BD' : 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  btnElem.classList.add('listening');
+  showToast(AppState.currentLang === 'bn' ? '🎙️ বলুন, শুনছি...' : '🎙️ Listening...');
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    const input = document.getElementById(targetInputId);
+    if (input) {
+      input.value = transcript;
+      if (targetInputId === 'patient-search-input') filterPatients();
+      if (targetInputId === 'remedy-search-input') filterRemedies();
+    }
+    showToast(`"${transcript}"`);
+  };
+
+  recognition.onerror = () => {
+    btnElem.classList.remove('listening');
+    showToast('ভয়েস শনাক্ত করা যায়নি।', 'error');
+  };
+
+  recognition.onend = () => {
+    btnElem.classList.remove('listening');
+  };
+
+  recognition.start();
+}
+
+// 3. Register PWA Service Worker for Mobile
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(err => {
+      console.log('SW registration failed:', err);
+    });
+  });
+}
+
+// 4. Haptic Feedback for Mobile Touch
+function triggerHaptic(type = 'light') {
+  if (navigator.vibrate) {
+    if (type === 'light') navigator.vibrate(12);
+    else if (type === 'medium') navigator.vibrate(25);
+    else if (type === 'success') navigator.vibrate([15, 30, 20]);
+  }
+}
+

@@ -1,0 +1,18 @@
+{
+  "name": "আঁখি হোমিও হল - ডিজিটাল ফার্মেসি",
+  "short_name": "আঁখি হোমিও",
+  "description": "হোমিওপ্যাথিক ফার্মেসি ও ক্লিনিক ডিজিটাল কেস ও প্রেসক্রিপশন নোটবুক",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#064e3b",
+  "theme_color": "#064e3b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%23059669'/><text x='50%' y='65%' font-size='55' text-anchor='middle' fill='white'>🌿</text></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

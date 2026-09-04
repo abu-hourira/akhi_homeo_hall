@@ -2,9 +2,13 @@
 <html lang="bn" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>আঁখি হোমিও হল - ডিজিটাল ফার্মেসি ও প্রেসক্রিপশন নোটবুক | Akhi Homeo Hall</title>
   <meta name="description" content="হোমিওপ্যাথিক ফার্মেসি ও চিকিৎসকদের জন্য নিরাপদ ডেটাবেজযুক্ত ডিজিটাল প্রেসক্রিপশন, রোগীর কেস হিস্ট্রি ও আয়-ব্যয় নোটবুক।">
+  <meta name="theme-color" content="#064e3b">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -173,12 +177,28 @@
             <i data-lucide="lock"></i>
           </button>
 
-          <button class="btn-primary" onclick="openPatientModal()">
+          <button class="btn-primary hide-mobile" onclick="openPatientModal()">
             <i data-lucide="user-plus"></i>
-            <span class="hide-mobile" data-i18n="btn_new_entry">নতুন এন্ট্রি</span>
+            <span data-i18n="btn_new_entry">নতুন এন্ট্রি</span>
           </button>
         </div>
       </header>
+
+      <!-- Mobile Quick Actions Chips Bar -->
+      <div class="mobile-action-chips">
+        <button class="action-chip chip-emerald" onclick="openPatientModal()">
+          <i data-lucide="user-plus" style="width: 15px; height: 15px;"></i> নতুন রোগী
+        </button>
+        <button class="action-chip" onclick="openTransactionModal('sale')">
+          <i data-lucide="plus-circle" style="width: 15px; height: 15px; color: #059669;"></i> নগদ বিক্রয়
+        </button>
+        <button class="action-chip" onclick="openTransactionModal('expense')">
+          <i data-lucide="minus-circle" style="width: 15px; height: 15px; color: #e11d48;"></i> দোকান খরচ
+        </button>
+        <button class="action-chip" onclick="switchTab('tab-remedies')">
+          <i data-lucide="search" style="width: 15px; height: 15px; color: #0f766e;"></i> ঔষধ খুঁজুন
+        </button>
+      </div>
 
       <!-- Main Body Container -->
       <div class="content-body">
@@ -235,14 +255,17 @@
           <div class="section-toolbar">
             <div class="search-box-wrapper">
               <i data-lucide="search" class="search-icon"></i>
-              <input type="text" id="patient-search-input" class="search-input" placeholder="রোগীর নাম, মোবাইল নম্বর বা রোগের লক্ষণ লিখে খুঁজুন..." oninput="filterPatients()">
+              <input type="text" id="patient-search-input" class="search-input" placeholder="রোগীর নাম, মোবাইল বা লক্ষণ লিখুন..." oninput="filterPatients()">
+              <button class="voice-search-btn" id="voice-search-patient" onclick="startVoiceSearch('patient-search-input', this)" title="ভয়েস সার্চ">
+                <i data-lucide="mic"></i>
+              </button>
             </div>
             <div class="filter-group">
               <button class="filter-btn active" onclick="setPatientFilter('all', this)" data-i18n="filter_all">সকল রোগী</button>
               <button class="filter-btn" onclick="setPatientFilter('today', this)" data-i18n="filter_today">আজকের রোগী</button>
               <button class="filter-btn" onclick="setPatientFilter('due', this)" data-i18n="filter_due_only">বাকি আছে</button>
               <button class="btn-secondary" onclick="exportPatientsCSV()">
-                <i data-lucide="download"></i> <span data-i18n="export_csv">এক্সেল/CSV ডাউনলোড</span>
+                <i data-lucide="download"></i> <span data-i18n="export_csv">এক্সেল/CSV</span>
               </button>
             </div>
           </div>
@@ -299,7 +322,7 @@
                 <i data-lucide="plus"></i> <span data-i18n="btn_add_sale">বিক্রয় এন্ট্রি</span>
               </button>
               <button class="btn-secondary" onclick="openTransactionModal('expense')">
-                <i data-lucide="minus"></i> <span data-i18n="btn_add_expense">দোকান খরচ এন্ট্রি</span>
+                <i data-lucide="minus"></i> <span data-i18n="btn_add_expense">দোকান খরচ</span>
               </button>
             </div>
           </div>
@@ -362,7 +385,10 @@
           <div class="section-toolbar">
             <div class="search-box-wrapper">
               <i data-lucide="search" class="search-icon"></i>
-              <input type="text" id="remedy-search-input" class="search-input" placeholder="হোমিও ঔষধের নাম, বাংলা নাম বা লক্ষণ দিয়ে খুঁজুন..." oninput="filterRemedies()">
+              <input type="text" id="remedy-search-input" class="search-input" placeholder="হোমিও ঔষধের নাম বা লক্ষণ দিয়ে খুঁজুন..." oninput="filterRemedies()">
+              <button class="voice-search-btn" id="voice-search-remedy" onclick="startVoiceSearch('remedy-search-input', this)" title="ভয়েস সার্চ">
+                <i data-lucide="mic"></i>
+              </button>
             </div>
             <button class="btn-primary" onclick="openRemedyModal()">
               <i data-lucide="plus"></i> <span data-i18n="btn_add_remedy">নতুন ঔষধ যোগ করুন</span>
@@ -376,7 +402,7 @@
 
         <!-- TAB 6: SECURITY & SETTINGS -->
         <section class="tab-content" id="tab-backup" style="display: none;">
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
             
             <!-- Security & Password Setup -->
             <div class="stat-card" style="flex-direction: column; align-items: stretch; gap: 14px;">
@@ -446,7 +472,7 @@
             <!-- Security Audit Log Table -->
             <div class="stat-card" style="grid-column: 1/-1; flex-direction: column; align-items: stretch; gap: 14px;">
               <h3 style="font-size: 1.1rem; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between;">
-                <span style="display: flex; align-items: center; gap: 8px;"><i data-lucide="clipboard-list"></i> সিকিউরিটি অডিট লগ (Security Activity Log)</span>
+                <span style="display: flex; align-items: center; gap: 8px;"><i data-lucide="clipboard-list"></i> সিকিউরিটি অডিট লগ (Activity Log)</span>
                 <button class="btn-secondary" style="font-size: 0.8rem; padding: 4px 8px;" onclick="loadAuditLogs()">
                   <i data-lucide="refresh-cw"></i> রিফ্রেশ
                 </button>
@@ -479,6 +505,7 @@
   <!-- MODAL: ADD / EDIT PATIENT & CASE NOTE -->
   <div class="modal-backdrop" id="modal-patient">
     <div class="modal-card modal-lg">
+      <div class="modal-drag-handle"></div>
       <div class="modal-header">
         <h3 id="modal-patient-title">
           <i data-lucide="user-plus"></i> 
@@ -612,6 +639,7 @@
   <!-- MODAL: ADD TRANSACTION -->
   <div class="modal-backdrop" id="modal-transaction">
     <div class="modal-card">
+      <div class="modal-drag-handle"></div>
       <div class="modal-header">
         <h3 id="modal-txn-title"><i data-lucide="badge-dollar-sign"></i> <span>লেনদেন এন্ট্রি</span></h3>
         <button class="btn-icon" onclick="closeTransactionModal()"><i data-lucide="x"></i></button>
@@ -667,6 +695,7 @@
   <!-- MODAL: ADD REMEDY / MEDICINE -->
   <div class="modal-backdrop" id="modal-remedy">
     <div class="modal-card">
+      <div class="modal-drag-handle"></div>
       <div class="modal-header">
         <h3><i data-lucide="flask-conical"></i> <span>নতুন হোমিওপ্যাথিক ঔষধ যোগ</span></h3>
         <button class="btn-icon" onclick="closeRemedyModal()"><i data-lucide="x"></i></button>
@@ -759,10 +788,8 @@
     </button>
   </nav>
 
-
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div class="toast-container" id="toast-container"></div>
-
 
   <!-- Scripts -->
   <script src="remedies_db.js"></script>
