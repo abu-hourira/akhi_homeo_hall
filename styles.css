@@ -1620,20 +1620,22 @@ textarea.form-control {
   .rx-medicine-row > div:nth-child(1) { grid-column: 1 / -1; }
   .rx-medicine-row > div:nth-child(3) { grid-column: 1 / -1; }
 
-  /* Mobile Bottom Navigation Bar */
+  /* Mobile Bottom Navigation Bar (নিচের মূল নেভিগেশন বার) */
   .mobile-bottom-nav {
     display: flex !important;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    height: 60px;
+    height: 64px;
     background: var(--bg-card);
     border-top: 1px solid var(--border-color);
-    z-index: 900;
+    z-index: 1000;
     align-items: center;
     justify-content: space-around;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(10px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .bottom-nav-btn {
@@ -1641,25 +1643,46 @@ textarea.form-control {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
+    gap: 2px;
     background: none;
     border: none;
     color: var(--text-secondary);
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     font-weight: 600;
     cursor: pointer;
     flex: 1;
     height: 100%;
     transition: var(--transition);
+    position: relative;
+    padding: 6px 0;
   }
 
   .bottom-nav-btn i {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
+    transition: var(--transition);
   }
 
   .bottom-nav-btn.active {
-    color: var(--primary-600);
+    color: var(--primary-700);
+  }
+
+  [data-theme="dark"] .bottom-nav-btn.active {
+    color: var(--teal-500);
+  }
+
+  .bottom-nav-btn.active i {
+    transform: translateY(-2px) scale(1.1);
+  }
+
+  .bottom-nav-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 6px;
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--primary-600);
   }
 
   /* Floating Action Button for Mobile */
@@ -1667,7 +1690,7 @@ textarea.form-control {
     display: flex !important;
     position: fixed;
     right: 18px;
-    bottom: 74px;
+    bottom: 76px;
     width: 52px;
     height: 52px;
     border-radius: 50%;
@@ -1677,7 +1700,7 @@ textarea.form-control {
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
-    z-index: 800;
+    z-index: 900;
     border: none;
     cursor: pointer;
     transition: var(--transition);
@@ -1692,4 +1715,5 @@ textarea.form-control {
 .mobile-bottom-nav, .mobile-fab-btn {
   display: none;
 }
+
 
