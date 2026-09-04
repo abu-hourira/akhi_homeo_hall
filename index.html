@@ -138,6 +138,9 @@
       </div>
     </aside>
 
+    <!-- Mobile Backdrop Overlay -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleMobileSidebar()"></div>
+
     <!-- Main Content Area -->
     <main class="main-wrapper">
       
@@ -723,8 +726,38 @@
     </div>
   </div>
 
+  <!-- Mobile Floating Action Button (FAB) -->
+  <button class="mobile-fab-btn" onclick="openPatientModal()" title="নতুন রোগী যোগ">
+    <i data-lucide="plus"></i>
+  </button>
+
+  <!-- Mobile Bottom Navigation Bar -->
+  <nav class="mobile-bottom-nav">
+    <button class="bottom-nav-btn active" data-tab="tab-patients" onclick="switchTab('tab-patients')">
+      <i data-lucide="book-user"></i>
+      <span>রোগী</span>
+    </button>
+    <button class="bottom-nav-btn" data-tab="tab-prescriptions" onclick="switchTab('tab-prescriptions')">
+      <i data-lucide="file-text"></i>
+      <span>প্রেসক্রিপশন</span>
+    </button>
+    <button class="bottom-nav-btn" data-tab="tab-ledger" onclick="switchTab('tab-ledger')">
+      <i data-lucide="calculator"></i>
+      <span>আয়-ব্যয়</span>
+    </button>
+    <button class="bottom-nav-btn" data-tab="tab-due" onclick="switchTab('tab-due')">
+      <i data-lucide="wallet-cards"></i>
+      <span>বাকি</span>
+    </button>
+    <button class="bottom-nav-btn" data-tab="tab-remedies" onclick="switchTab('tab-remedies')">
+      <i data-lucide="flask-conical"></i>
+      <span>ঔষধ</span>
+    </button>
+  </nav>
+
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div class="toast-container" id="toast-container"></div>
+
 
   <!-- Scripts -->
   <script src="remedies_db.js"></script>

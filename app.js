@@ -449,6 +449,11 @@ function switchTab(tabId) {
   const activeBtn = document.querySelector(`.sidebar-nav .nav-item[data-tab="${tabId}"]`);
   if (activeBtn) activeBtn.classList.add('active');
 
+  // Also sync mobile bottom nav active state
+  document.querySelectorAll('.mobile-bottom-nav .bottom-nav-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-tab') === tabId);
+  });
+
   document.querySelectorAll('.tab-content').forEach(section => {
     section.style.display = section.id === tabId ? 'block' : 'none';
   });
@@ -458,14 +463,18 @@ function switchTab(tabId) {
   lucide.createIcons();
 
   const sidebar = document.getElementById('app-sidebar');
-  if (sidebar.classList.contains('mobile-open')) {
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar && sidebar.classList.contains('mobile-open')) {
     sidebar.classList.remove('mobile-open');
   }
+  if (backdrop) backdrop.classList.remove('active');
 }
 
 function toggleMobileSidebar() {
   const sidebar = document.getElementById('app-sidebar');
-  sidebar.classList.toggle('mobile-open');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if (sidebar) sidebar.classList.toggle('mobile-open');
+  if (backdrop) backdrop.classList.toggle('active');
 }
 
 // --- MASTER RENDER & STATS ---
