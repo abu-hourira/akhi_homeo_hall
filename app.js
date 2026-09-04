@@ -137,13 +137,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupTabNavigation();
   setupActivityListeners();
   
-  // Check if active session exists
+  // Instant Check: If active session exists, immediately load data seamlessly
   if (AppState.authToken) {
+    unlockAppUI();
+    fetchAllServerData(); // fetch in background
+    
+    // Verify token validity asynchronously
     const valid = await verifyAuthToken(AppState.authToken);
-    if (valid) {
-      unlockAppUI();
-      await fetchAllServerData();
-    } else {
+    if (!valid) {
       lockNotebook();
     }
   } else {
@@ -159,7 +160,7 @@ function enterPinDigit(digit) {
     AppState.enteredPin += digit;
     updatePinDisplayDots();
     if (AppState.enteredPin.length === 4) {
-      setTimeout(() => submitPinUnlock(), 200);
+      setTimeout(() => submitPinUnlock(), 150);
     }
   }
 }
@@ -203,9 +204,9 @@ async function submitPinUnlock() {
       clearPin();
     }
   } catch (err) {
-    // If backend is not reached, fallback check with default 1234
     if (AppState.enteredPin === '1234') {
       AppState.authToken = 'offline_token';
+      sessionStorage.setItem('ahh_auth_token', 'offline_token');
       unlockAppUI();
       loadStoredDataFallback();
       showToast('অফলাইন মোডে আনলক হয়েছে!');
@@ -241,6 +242,7 @@ async function submitPasswordLogin(event) {
   } catch (err) {
     if (username === 'admin' && password === 'admin123') {
       AppState.authToken = 'offline_token';
+      sessionStorage.setItem('ahh_auth_token', 'offline_token');
       unlockAppUI();
       loadStoredDataFallback();
       showToast('অফলাইন মোডে লগইন সফল!');
@@ -264,15 +266,28 @@ async function verifyAuthToken(token) {
 
 function lockNotebook() {
   AppState.isLocked = true;
+  AppState.authToken = null;
+  sessionStorage.removeItem('ahh_auth_token');
+  document.documentElement.classList.remove('is-authenticated');
   clearPin();
-  document.getElementById('security-lock-screen').classList.remove('hidden');
+  const lockScreen = document.getElementById('security-lock-screen');
+  if (lockScreen) {
+    lockScreen.classList.remove('hidden');
+    lockScreen.style.display = 'flex';
+  }
 }
 
 function unlockAppUI() {
   AppState.isLocked = false;
   AppState.lastActivityTime = Date.now();
-  document.getElementById('security-lock-screen').classList.add('hidden');
+  document.documentElement.classList.add('is-authenticated');
+  const lockScreen = document.getElementById('security-lock-screen');
+  if (lockScreen) {
+    lockScreen.classList.add('hidden');
+    lockScreen.style.display = 'none';
+  }
 }
+
 
 function switchLoginMode(mode) {
   const pinContainer = document.getElementById('pin-login-container');

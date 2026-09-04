@@ -10,9 +10,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
+  <!-- Instant Synchronous Auth Check to Eliminate Lock Screen Flicker/Blink on Reload -->
+  <script>
+    if (sessionStorage.getItem('ahh_auth_token')) {
+      document.documentElement.classList.add('is-authenticated');
+    }
+  </script>
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
 </head>
+
 <body>
 
   <!-- ============================================== -->
