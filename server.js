@@ -530,6 +530,18 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+    // 19. HEALTH CHECK & PING (For Render & Mobile App)
+    if ((pathname === '/api/health' || pathname === '/api/ping') && req.method === 'GET') {
+      return sendJSON(res, 200, {
+        success: true,
+        status: 'online',
+        app: 'Akhi Homeo Hall',
+        version: '2.0.0',
+        timestamp: new Date().toISOString(),
+        database: 'SQLite 3 (WAL mode)'
+      });
+    }
+
     // --- STATIC FILE SERVING ---
     let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
     
@@ -576,8 +588,10 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`🌿 Akhi Homeo Hall Secure Server running at: http://localhost:${PORT}`);
+const HOST = '0.0.0.0';
+server.listen(PORT, HOST, () => {
+  console.log(`🌿 Akhi Homeo Hall Secure Server running at: http://${HOST}:${PORT}`);
   console.log(`🔒 SQLite Database: akhi_homeo.db`);
   console.log(`🔑 Default Admin: admin | Password: admin123 | Quick PIN: 1234`);
 });
+

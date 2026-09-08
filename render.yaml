@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: akhi-homeo-hall
+    runtime: node
+    plan: free
+    buildCommand: npm install && node build-mobile.js
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000

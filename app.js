@@ -134,6 +134,7 @@ let AppState = {
     phoneStored: true,
     dbStatus: 'synced', // 'synced' | 'pending' | 'offline'
     pendingQueueCount: 0,
+    serverUrl: localStorage.getItem('ahh_server_url') || '',
     gdriveConnected: !!localStorage.getItem('ahh_gdrive_email'),
     gdriveEmail: localStorage.getItem('ahh_gdrive_email') || null,
     gdriveToken: localStorage.getItem('ahh_gdrive_token') || null,
@@ -144,12 +145,107 @@ let AppState = {
   }
 };
 
+// --- API & SERVER BASE URL RESOLVER ---
+function getServerBaseUrl() {
+  const custom = (localStorage.getItem('ahh_server_url') || '').trim();
+  if (custom) return custom.replace(/\/+$/, '');
+  
+  // If inside Android WebView / Capacitor or standalone file
+  if (window.location.protocol === 'capacitor:' || window.location.protocol === 'file:' || (window.location.hostname === 'localhost' && window.location.port !== '3000')) {
+    return 'https://akhi-homeo-hall.onrender.com';
+  }
+  return '';
+}
+
+function getApiUrl(endpoint) {
+  const clean = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+  const base = getServerBaseUrl();
+  return base ? `${base}${clean}` : clean;
+}
+
+async function testServerConnection() {
+  const input = document.getElementById('setting-server-url');
+  const url = (input ? input.value : '').trim() || getServerBaseUrl() || window.location.origin;
+  const resultBox = document.getElementById('server-ping-result-box');
+  const badge = document.getElementById('server-status-badge');
+  const btn = document.getElementById('btn-test-server-ping');
+
+  if (btn) btn.classList.add('loading');
+  if (resultBox) {
+    resultBox.style.display = 'flex';
+    resultBox.style.background = '#f1f5f9';
+    resultBox.style.color = '#334155';
+    resultBox.innerHTML = '<i data-lucide="loader-2" class="spinning"></i> <span>সার্ভার পিং করা হচ্ছে...</span>';
+    lucide.createIcons();
+  }
+
+  const startTime = Date.now();
+  const pingUrl = url.replace(/\/+$/, '') + '/api/ping';
+
+  try {
+    const res = await fetch(pingUrl, { method: 'GET', mode: 'cors' });
+    const latency = Date.now() - startTime;
+    if (res.ok) {
+      const data = await res.json();
+      if (resultBox) {
+        resultBox.style.background = '#ecfdf5';
+        resultBox.style.color = '#065f46';
+        resultBox.innerHTML = `<i data-lucide="check-circle-2" style="color:#059669;"></i> <span><strong>সার্ভার সচল (Online)!</strong> রেসপন্স টাইম: <strong>${latency}ms</strong> | ডেটাবেজ: ${data.database || 'SQLite'}</span>`;
+      }
+      if (badge) {
+        badge.innerText = `অনলাইন (${latency}ms)`;
+        badge.className = 'badge-tag live-badge';
+      }
+      showToast(`সার্ভার কানেক্টেড! রেসপন্স: ${latency}ms`);
+    } else {
+      throw new Error(`HTTP ${res.status}`);
+    }
+  } catch (err) {
+    if (resultBox) {
+      resultBox.style.background = '#fef2f2';
+      resultBox.style.color = '#991b1b';
+      resultBox.innerHTML = `<i data-lucide="alert-triangle" style="color:#dc2626;"></i> <span><strong>সংযোগ পাওয়া যায়নি!</strong> URL টি সঠিক কিনা এবং সার্ভার চালু আছে কিনা পরীক্ষা করুন। (${err.message})</span>`;
+    }
+    if (badge) {
+      badge.innerText = 'অফলাইন / ডিসকানেক্টেড';
+      badge.className = 'badge-tag';
+    }
+    showToast('সার্ভার কানেকশন ব্যর্থ হয়েছে!', 'error');
+  } finally {
+    if (btn) btn.classList.remove('loading');
+    lucide.createIcons();
+  }
+}
+
+function saveServerUrl() {
+  const input = document.getElementById('setting-server-url');
+  const url = (input ? input.value : '').trim();
+  if (url) {
+    localStorage.setItem('ahh_server_url', url);
+    showToast('ক্লাউড সার্ভার URL সংরক্ষণ করা হয়েছে।');
+  } else {
+    localStorage.removeItem('ahh_server_url');
+    showToast('ডিফল্ট সার্ভার কনফিগারেশন সেট করা হয়েছে।');
+  }
+  testServerConnection();
+  if (AppState.authToken) {
+    flushSyncQueue();
+    fetchAllServerData();
+  }
+}
+
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
   initLocaleAndTheme();
   updateLiveDate();
   setupTabNavigation();
   setupActivityListeners();
+  
+  // Populate server URL input
+  const serverInput = document.getElementById('setting-server-url');
+  if (serverInput) {
+    serverInput.value = localStorage.getItem('ahh_server_url') || '';
+  }
   
   // Initialize Tier 1 IndexedDB Local Storage
   await openIndexedDB();
@@ -226,7 +322,7 @@ function updatePinDisplayDots() {
 async function submitPinUnlock() {
   if (!AppState.enteredPin) return;
   try {
-    const res = await fetch('/api/auth/pin', {
+    const res = await fetch(getApiUrl('/api/auth/pin'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin: AppState.enteredPin })
@@ -263,7 +359,7 @@ async function submitPasswordLogin(event) {
   const password = document.getElementById('login-password').value;
 
   try {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(getApiUrl('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
@@ -294,7 +390,7 @@ async function submitPasswordLogin(event) {
 
 async function verifyAuthToken(token) {
   try {
-    const res = await fetch('/api/auth/verify', {
+    const res = await fetch(getApiUrl('/api/auth/verify'), {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
@@ -546,7 +642,7 @@ async function flushSyncQueue() {
       'Authorization': `Bearer ${AppState.authToken}`
     };
 
-    const res = await fetch('/api/sync/batch', {
+    const res = await fetch(getApiUrl('/api/sync/batch'), {
       method: 'POST',
       headers,
       body: JSON.stringify({ items })
@@ -975,7 +1071,7 @@ async function fetchAllServerData() {
     const headers = { 'Authorization': `Bearer ${AppState.authToken}` };
 
     // 1. Fetch Patients
-    const patRes = await fetch('/api/patients', { headers });
+    const patRes = await fetch(getApiUrl('/api/patients'), { headers });
     if (patRes.ok) {
       const patData = await patRes.json();
       AppState.patients = patData.patients || [];
@@ -986,7 +1082,7 @@ async function fetchAllServerData() {
     }
 
     // 2. Fetch Transactions
-    const txnRes = await fetch('/api/transactions', { headers });
+    const txnRes = await fetch(getApiUrl('/api/transactions'), { headers });
     if (txnRes.ok) {
       const txnData = await txnRes.json();
       AppState.transactions = txnData.transactions || [];
@@ -996,7 +1092,7 @@ async function fetchAllServerData() {
     }
 
     // 3. Fetch Remedies
-    const remRes = await fetch('/api/remedies', { headers });
+    const remRes = await fetch(getApiUrl('/api/remedies'), { headers });
     if (remRes.ok) {
       const remData = await remRes.json();
       AppState.remedies = remData.remedies || DEFAULT_REMEDIES;
@@ -1006,7 +1102,7 @@ async function fetchAllServerData() {
     }
 
     // 4. Fetch Settings
-    const setRes = await fetch('/api/settings', { headers });
+    const setRes = await fetch(getApiUrl('/api/settings'), { headers });
     if (setRes.ok) {
       const setData = await setRes.json();
       if (setData.settings) {
@@ -2129,7 +2225,7 @@ async function updateSecurityPin() {
   }
 
   try {
-    const res = await fetch('/api/auth/change-pin', {
+    const res = await fetch(getApiUrl('/api/auth/change-pin'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2160,7 +2256,7 @@ async function updateSecurityPassword() {
   }
 
   try {
-    const res = await fetch('/api/auth/change-password', {
+    const res = await fetch(getApiUrl('/api/auth/change-password'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -2187,7 +2283,7 @@ async function loadAuditLogs() {
   if (!tbody) return;
 
   try {
-    const res = await fetch('/api/audit-logs', {
+    const res = await fetch(getApiUrl('/api/audit-logs'), {
       headers: { 'Authorization': `Bearer ${AppState.authToken}` }
     });
     const data = await res.json();
@@ -2207,7 +2303,7 @@ async function loadAuditLogs() {
 }
 
 function downloadDatabaseFile() {
-  window.open('/api/backup/db', '_blank');
+  window.open(getApiUrl('/api/backup/db'), '_blank');
   showToast(AppState.currentLang === 'bn' ? 'SQLite ডাটাবেজ ফাইল ডাউনলোড শুরু হয়েছে।' : 'Downloading SQLite Database file...');
 }
 
@@ -2270,7 +2366,7 @@ async function saveClinicSettings() {
   };
 
   try {
-    await fetch('/api/settings', {
+    await fetch(getApiUrl('/api/settings'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
