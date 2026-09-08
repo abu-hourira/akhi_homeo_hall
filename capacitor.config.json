@@ -1,0 +1,13 @@
+{
+  "appId": "com.akhi.homeo.hall",
+  "appName": "Akhi Homeo Hall",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

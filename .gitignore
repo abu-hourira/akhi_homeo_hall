@@ -4,4 +4,9 @@ Thumbs.db
 *.log
 *.db-shm
 *.db-wal
+.gradle/
+android/.gradle/
+android/app/build/
+output/
+
 
