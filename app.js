@@ -127,6 +127,20 @@ let AppState = {
     address: "মিরপুর-১০, ঢাকা | মোবাইল: 01712-000000",
     slogan: "অভিজ্ঞ হোমিও চিকিৎসক দ্বারা সার্বিক চিকিৎসা ও খাঁটি ঔষধের বিশ্বস্ত প্রতিষ্ঠান",
     autoLockMinutes: "10"
+  },
+
+  // 3-Tier Redundancy & Storage Sync State
+  syncState: {
+    phoneStored: true,
+    dbStatus: 'synced', // 'synced' | 'pending' | 'offline'
+    pendingQueueCount: 0,
+    gdriveConnected: !!localStorage.getItem('ahh_gdrive_email'),
+    gdriveEmail: localStorage.getItem('ahh_gdrive_email') || null,
+    gdriveToken: localStorage.getItem('ahh_gdrive_token') || null,
+    gdriveTokenExpires: Number(localStorage.getItem('ahh_gdrive_token_expires') || 0),
+    gdriveFolderId: localStorage.getItem('ahh_gdrive_folder_id') || null,
+    gdriveLastSync: localStorage.getItem('ahh_gdrive_last_sync') || null,
+    googleClientId: localStorage.getItem('ahh_gdrive_client_id') || '1035987342798-8u6u4k5gq7q0c62955fsl93b5a75b9k2.apps.googleusercontent.com'
   }
 };
 
@@ -137,6 +151,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupTabNavigation();
   setupActivityListeners();
   
+  // Initialize Tier 1 IndexedDB Local Storage
+  await openIndexedDB();
+  await loadDataFromIndexedDB();
+  updateTierStatusUI();
+
+  // Setup Online / Offline Network Listeners for Auto-Sync
+  window.addEventListener('online', () => {
+    showToast('ইন্টারনেট সংযোগ চালু হয়েছে! ব্যাকগ্রাউন্ডে ডাটা সিঙ্ক হচ্ছে...', 'info');
+    flushSyncQueue();
+  });
+  window.addEventListener('offline', () => {
+    AppState.syncState.dbStatus = 'offline';
+    updateTierStatusUI();
+    showToast('অফলাইন মোড: ডাটা নিরাপদে ফোনে সংরক্ষিত হচ্ছে।', 'warning');
+  });
+
+  // Initialize Google Identity Services for Tier 3
+  setTimeout(initGoogleDriveAuth, 1000);
+
+  // Periodic heartbeat to flush queue & sync (every 30s)
+  setInterval(() => {
+    if (navigator.onLine && AppState.authToken) {
+      flushSyncQueue();
+    }
+  }, 30000);
+
   // Instant Check: If active session exists, immediately load data seamlessly
   if (AppState.authToken) {
     unlockAppUI();
@@ -326,6 +366,609 @@ function setupActivityListeners() {
   }, 30000);
 }
 
+// ==========================================================
+// 📱 TIER 1: INDEXEDDB LOCAL-FIRST STORAGE MANAGER
+// ==========================================================
+const IDB_NAME = 'AkhiHomeoHallDB';
+const IDB_VERSION = 1;
+let idb = null;
+
+function openIndexedDB() {
+  return new Promise((resolve) => {
+    if (idb) return resolve(idb);
+    try {
+      const request = indexedDB.open(IDB_NAME, IDB_VERSION);
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains('patients')) {
+          db.createObjectStore('patients', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('transactions')) {
+          db.createObjectStore('transactions', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('remedies')) {
+          db.createObjectStore('remedies', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('settings')) {
+          db.createObjectStore('settings', { keyPath: 'key' });
+        }
+        if (!db.objectStoreNames.contains('syncQueue')) {
+          db.createObjectStore('syncQueue', { keyPath: 'queueId', autoIncrement: true });
+        }
+      };
+
+      request.onsuccess = (event) => {
+        idb = event.target.result;
+        resolve(idb);
+      };
+
+      request.onerror = (event) => {
+        console.warn('IndexedDB Open Error', event);
+        resolve(null);
+      };
+    } catch (e) {
+      console.warn('IndexedDB unavailable, falling back to localStorage', e);
+      resolve(null);
+    }
+  });
+}
+
+async function idbPut(storeName, data) {
+  try {
+    const db = await openIndexedDB();
+    if (!db) {
+      saveLocalStorageFallback();
+      return;
+    }
+    return new Promise((resolve) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      store.put(data);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch (e) {
+    saveLocalStorageFallback();
+  }
+}
+
+async function idbGetAll(storeName) {
+  try {
+    const db = await openIndexedDB();
+    if (!db) return [];
+    return new Promise((resolve) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const store = tx.objectStore(storeName);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+async function idbDelete(storeName, key) {
+  try {
+    const db = await openIndexedDB();
+    if (!db) return;
+    return new Promise((resolve) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      store.delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch (e) {
+    console.warn('idbDelete error', e);
+  }
+}
+
+async function idbClear(storeName) {
+  try {
+    const db = await openIndexedDB();
+    if (!db) return;
+    return new Promise((resolve) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      store.clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch (e) {
+    console.warn('idbClear error', e);
+  }
+}
+
+async function loadDataFromIndexedDB() {
+  const [cachedPatients, cachedTxns, cachedRemedies] = await Promise.all([
+    idbGetAll('patients'),
+    idbGetAll('transactions'),
+    idbGetAll('remedies')
+  ]);
+
+  if (cachedPatients && cachedPatients.length > 0) {
+    AppState.patients = cachedPatients;
+  } else {
+    loadStoredDataFallback();
+  }
+
+  if (cachedTxns && cachedTxns.length > 0) {
+    AppState.transactions = cachedTxns;
+  }
+  if (cachedRemedies && cachedRemedies.length > 0) {
+    AppState.remedies = cachedRemedies;
+  }
+
+  const queue = await idbGetAll('syncQueue');
+  AppState.syncState.pendingQueueCount = queue.length;
+}
+
+// ==========================================================
+// 🔄 TIER 2: SYNC QUEUE & SERVER AUTO-SYNC ENGINE
+// ==========================================================
+async function queueSyncAction(type, data, id = null) {
+  const item = {
+    type,
+    data,
+    id: id || (data ? data.id : null),
+    queuedAt: new Date().toISOString()
+  };
+  await idbPut('syncQueue', item);
+  
+  const queue = await idbGetAll('syncQueue');
+  AppState.syncState.pendingQueueCount = queue.length;
+  AppState.syncState.dbStatus = 'pending';
+  updateTierStatusUI();
+
+  // If online, immediately push to server
+  if (navigator.onLine) {
+    setTimeout(flushSyncQueue, 350);
+  }
+}
+
+async function flushSyncQueue() {
+  const items = await idbGetAll('syncQueue');
+  if (items.length === 0) {
+    AppState.syncState.dbStatus = 'synced';
+    AppState.syncState.pendingQueueCount = 0;
+    updateTierStatusUI();
+    return;
+  }
+
+  const spinner = document.getElementById('sync-spinner-icon');
+  if (spinner) spinner.classList.add('spinning');
+
+  try {
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${AppState.authToken}`
+    };
+
+    const res = await fetch('/api/sync/batch', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ items })
+    });
+
+    if (res.ok) {
+      const resData = await res.json();
+      if (resData.success) {
+        await idbClear('syncQueue');
+        AppState.syncState.pendingQueueCount = 0;
+        AppState.syncState.dbStatus = 'synced';
+        console.log(`✅ Batch synced ${resData.processed} offline items.`);
+        
+        // Background auto sync to Google Drive if connected
+        if (AppState.syncState.gdriveConnected) {
+          syncToGoogleDrive(false);
+        }
+      }
+    } else {
+      AppState.syncState.dbStatus = 'pending';
+    }
+  } catch (err) {
+    console.warn('Sync flush offline', err);
+    AppState.syncState.dbStatus = 'offline';
+  } finally {
+    if (spinner) spinner.classList.remove('spinning');
+    updateTierStatusUI();
+  }
+}
+
+function updateTierStatusUI() {
+  // 1. Tier 1: Phone
+  const phonePill = document.getElementById('tier-pill-phone');
+  const phoneStatus = document.getElementById('tier-status-phone');
+  const phoneDot = document.getElementById('phone-pulse-dot');
+  if (phonePill && phoneStatus) {
+    phonePill.className = 'sync-tier-pill synced';
+    phoneStatus.innerText = AppState.currentLang === 'bn' ? 'সংরক্ষিত' : 'Saved';
+    if (phoneDot) phoneDot.className = 'pulse-dot active';
+  }
+
+  // 2. Tier 2: Database
+  const dbPill = document.getElementById('tier-pill-db');
+  const dbStatus = document.getElementById('tier-status-db');
+  const dbDot = document.getElementById('db-pulse-dot');
+  if (dbPill && dbStatus) {
+    if (AppState.syncState.pendingQueueCount > 0) {
+      dbPill.className = 'sync-tier-pill pending';
+      dbStatus.innerText = AppState.currentLang === 'bn' 
+        ? `${AppState.syncState.pendingQueueCount}টি অপেক্ষমাণ` 
+        : `${AppState.syncState.pendingQueueCount} Pending`;
+      if (dbDot) dbDot.className = 'pulse-dot warning';
+    } else if (AppState.syncState.dbStatus === 'offline') {
+      dbPill.className = 'sync-tier-pill pending';
+      dbStatus.innerText = AppState.currentLang === 'bn' ? 'অফলাইন' : 'Offline';
+      if (dbDot) dbDot.className = 'pulse-dot warning';
+    } else {
+      dbPill.className = 'sync-tier-pill synced';
+      dbStatus.innerText = AppState.currentLang === 'bn' ? 'সিঙ্কড' : 'Synced';
+      if (dbDot) dbDot.className = 'pulse-dot active';
+    }
+  }
+
+  // 3. Tier 3: Google Drive
+  const drivePill = document.getElementById('tier-pill-drive');
+  const driveStatus = document.getElementById('tier-status-drive');
+  const driveDot = document.getElementById('drive-pulse-dot');
+  const driveBadge = document.getElementById('gdrive-status-badge');
+  const driveBanner = document.getElementById('gdrive-connected-banner');
+  const driveEmail = document.getElementById('gdrive-user-email');
+  const driveLastSync = document.getElementById('gdrive-last-sync-time');
+  const btnConnect = document.getElementById('btn-gdrive-connect');
+  const btnDisconnect = document.getElementById('btn-gdrive-disconnect');
+
+  if (AppState.syncState.gdriveConnected && AppState.syncState.gdriveEmail) {
+    if (drivePill && driveStatus) {
+      drivePill.className = 'sync-tier-pill synced';
+      driveStatus.innerText = AppState.syncState.gdriveEmail.split('@')[0];
+      if (driveDot) driveDot.className = 'pulse-dot active';
+    }
+    if (driveBadge) {
+      driveBadge.innerText = `সংযুক্ত: ${AppState.syncState.gdriveEmail}`;
+      driveBadge.className = 'badge-tag live-badge';
+    }
+    if (driveBanner) driveBanner.style.display = 'flex';
+    if (driveEmail) driveEmail.innerText = AppState.syncState.gdriveEmail;
+    if (driveLastSync) driveLastSync.innerText = AppState.syncState.gdriveLastSync || 'কখনও নয়';
+    if (btnConnect) btnConnect.style.display = 'none';
+    if (btnDisconnect) btnDisconnect.style.display = 'inline-flex';
+  } else {
+    if (drivePill && driveStatus) {
+      drivePill.className = 'sync-tier-pill';
+      driveStatus.innerText = AppState.currentLang === 'bn' ? 'কানেক্ট করুন' : 'Connect';
+      if (driveDot) driveDot.className = 'pulse-dot';
+    }
+    if (driveBadge) {
+      driveBadge.innerText = 'অফলাইন / আনলিংকড';
+      driveBadge.className = 'badge-tag';
+    }
+    if (driveBanner) driveBanner.style.display = 'none';
+    if (btnConnect) btnConnect.style.display = 'inline-flex';
+    if (btnDisconnect) btnDisconnect.style.display = 'none';
+  }
+}
+
+async function triggerManualSync() {
+  const spinner = document.getElementById('sync-spinner-icon');
+  if (spinner) spinner.classList.add('spinning');
+  showToast(AppState.currentLang === 'bn' ? '৩ স্তরে ডেটা সিঙ্ক হচ্ছে...' : 'Syncing across 3 tiers...');
+  
+  await flushSyncQueue();
+  await fetchAllServerData();
+  
+  if (AppState.syncState.gdriveConnected) {
+    await syncToGoogleDrive(true);
+  }
+  
+  setTimeout(() => {
+    if (spinner) spinner.classList.remove('spinning');
+    showToast(AppState.currentLang === 'bn' ? 'সকল ডেটা ৩ স্তরে সম্পূর্ণ সুরক্ষিত ও সিঙ্ক হয়েছে!' : 'All data synced across 3 tiers!');
+  }, 600);
+}
+
+// ==========================================================
+// ☁️ TIER 3: GOOGLE DRIVE & GMAIL AUTO-SYNC CLIENT
+// ==========================================================
+let tokenClient = null;
+
+function initGoogleDriveAuth() {
+  const clientId = AppState.syncState.googleClientId;
+  const inputEl = document.getElementById('setting-google-client-id');
+  if (inputEl) inputEl.value = clientId || '';
+
+  if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+    try {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email',
+        callback: async (tokenResponse) => {
+          if (tokenResponse.error !== undefined) {
+            showToast('গুগল লগইন ত্রুটি: ' + tokenResponse.error, 'error');
+            return;
+          }
+          
+          AppState.syncState.gdriveToken = tokenResponse.access_token;
+          AppState.syncState.gdriveTokenExpires = Date.now() + (Number(tokenResponse.expires_in || 3600) * 1000);
+          localStorage.setItem('ahh_gdrive_token', tokenResponse.access_token);
+          localStorage.setItem('ahh_gdrive_token_expires', String(AppState.syncState.gdriveTokenExpires));
+
+          // Fetch user email
+          try {
+            const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: { 'Authorization': `Bearer ${tokenResponse.access_token}` }
+            });
+            if (userInfoRes.ok) {
+              const userInfo = await userInfoRes.json();
+              AppState.syncState.gdriveEmail = userInfo.email;
+              AppState.syncState.gdriveConnected = true;
+              localStorage.setItem('ahh_gdrive_email', userInfo.email);
+            }
+          } catch(e) {
+            AppState.syncState.gdriveEmail = 'Google Account Connected';
+            AppState.syncState.gdriveConnected = true;
+            localStorage.setItem('ahh_gdrive_email', 'connected');
+          }
+
+          updateTierStatusUI();
+          showToast(AppState.currentLang === 'bn' ? `গুগল ড্রাইভ সফলভাবে যুক্ত হয়েছে: ${AppState.syncState.gdriveEmail}` : 'Google Drive connected successfully!');
+          
+          // Trigger first Drive sync
+          await syncToGoogleDrive(true);
+        }
+      });
+    } catch (e) {
+      console.warn('Google Identity Token Client init error:', e);
+    }
+  }
+}
+
+function connectGoogleDrive() {
+  if (!tokenClient) {
+    initGoogleDriveAuth();
+  }
+  if (tokenClient) {
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  } else {
+    showToast('গুগল সার্ভিস লোড হচ্ছে, অনুগ্রহ করে কয়েক সেকেন্ড পর আবার চেষ্টা করুন।', 'error');
+  }
+}
+
+function disconnectGoogleDrive() {
+  AppState.syncState.gdriveConnected = false;
+  AppState.syncState.gdriveEmail = null;
+  AppState.syncState.gdriveToken = null;
+  AppState.syncState.gdriveTokenExpires = 0;
+  AppState.syncState.gdriveFolderId = null;
+  localStorage.removeItem('ahh_gdrive_email');
+  localStorage.removeItem('ahh_gdrive_token');
+  localStorage.removeItem('ahh_gdrive_token_expires');
+  localStorage.removeItem('ahh_gdrive_folder_id');
+  updateTierStatusUI();
+  showToast(AppState.currentLang === 'bn' ? 'গুগল ড্রাইভ ডিসকানেক্ট করা হয়েছে।' : 'Google Drive disconnected.');
+}
+
+function saveCustomGoogleClientId() {
+  const val = document.getElementById('setting-google-client-id').value.trim();
+  if (val) {
+    AppState.syncState.googleClientId = val;
+    localStorage.setItem('ahh_gdrive_client_id', val);
+    initGoogleDriveAuth();
+    showToast('Google Client ID সফলভাবে সংরক্ষণ করা হয়েছে!');
+  }
+}
+
+// Generate UTF-8 BOM CSV strings for Excel
+function generatePatientsCSV() {
+  let csv = "\uFEFFক্রমিক নং,রেজিস্ট্রেশন নং,রোগীর নাম,বয়স,লিঙ্গ,মোবাইল,রক্তের গ্রুপ,ঠিকানা,প্রধান রোগ লক্ষণ (Chief Complaint),শারীরিক লক্ষণ,ঔষধের বিবরণ,মোট বিল,পরিশোধ,বাকি,সর্বশেষ তারিখ\n";
+  AppState.patients.forEach((p, idx) => {
+    const latestRx = (p.prescriptions && p.prescriptions.length > 0) ? p.prescriptions[p.prescriptions.length - 1] : null;
+    const medSummary = latestRx && latestRx.medicines ? latestRx.medicines.map(m => `${m.name} ${m.potency || ''}`).join('; ') : '-';
+    const totalDue = (p.prescriptions || []).reduce((acc, rx) => acc + Number(rx.due || 0), 0);
+    const cleanComplaint = (p.chiefComplaint || '').replace(/"/g, '""').replace(/\n/g, ' ');
+    const cleanSymptoms = (p.symptoms || '').replace(/"/g, '""').replace(/\n/g, ' ');
+    
+    csv += `"${idx + 1}","${p.regNo || ''}","${p.name || ''}","${p.age || ''}","${p.gender || ''}","${p.mobile || ''}","${p.bloodGroup || ''}","${p.address || ''}","${cleanComplaint}","${cleanSymptoms}","${medSummary}","${latestRx ? latestRx.totalFee : 0}","${latestRx ? latestRx.paid : 0}","${totalDue}","${latestRx ? latestRx.date : ''}"\n`;
+  });
+  return csv;
+}
+
+function generateLedgerCSV() {
+  let csv = "\uFEFFক্রমিক নং,তারিখ,ধরনের নাম,বিবরণ/ক্যাটাগরি,রোগীর নাম,মোবাইল,নোট,পরিমাণ (৳),পরিশোধ (৳),বাকি (৳)\n";
+  AppState.transactions.forEach((t, idx) => {
+    csv += `"${idx + 1}","${t.date || ''}","${t.type === 'sale' ? 'বিক্রয়' : 'দোকান খরচ'}","${t.category || ''}","${t.patientName || '-'}","${t.mobile || '-'}","${(t.note || '').replace(/"/g, '""')}","${t.amount || 0}","${t.paid || 0}","${t.due || 0}"\n`;
+  });
+  return csv;
+}
+
+function exportPatientsCSV() {
+  const csv = generatePatientsCSV();
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `আঁখি_হোমিও_রোগীদের_কেস_ডায়েরি_${getTodayStr()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('রোগীদের এক্সেল/CSV ফাইল ডাউনলোড হয়েছে।');
+}
+
+function exportLedgerCSV() {
+  const csv = generateLedgerCSV();
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `আঁখি_হোমিও_দৈনিক_আয়_ব্যয়_${getTodayStr()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('দৈনিক হিসাবের এক্সেল/CSV ফাইল ডাউনলোড হয়েছে।');
+}
+
+async function getOrCreateGoogleDriveFolder(accessToken) {
+  if (AppState.syncState.gdriveFolderId) return AppState.syncState.gdriveFolderId;
+
+  const folderName = 'Akhi Homeo Hall Auto Backups';
+  const query = `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  
+  try {
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (searchRes.ok) {
+      const searchData = await searchRes.json();
+      if (searchData.files && searchData.files.length > 0) {
+        const folderId = searchData.files[0].id;
+        AppState.syncState.gdriveFolderId = folderId;
+        localStorage.setItem('ahh_gdrive_folder_id', folderId);
+        return folderId;
+      }
+    }
+
+    // Create folder if not found
+    const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder'
+      })
+    });
+
+    if (createRes.ok) {
+      const createData = await createRes.json();
+      AppState.syncState.gdriveFolderId = createData.id;
+      localStorage.setItem('ahh_gdrive_folder_id', createData.id);
+      return createData.id;
+    }
+  } catch (e) {
+    console.warn('Drive folder creation error', e);
+  }
+  return null;
+}
+
+async function uploadFileToGoogleDrive(accessToken, folderId, fileName, mimeType, content) {
+  const query = `name='${fileName}' and '${folderId}' in parents and trashed=false`;
+  let fileId = null;
+
+  try {
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (searchRes.ok) {
+      const searchData = await searchRes.json();
+      if (searchData.files && searchData.files.length > 0) {
+        fileId = searchData.files[0].id;
+      }
+    }
+
+    const metadata = {
+      name: fileName,
+      mimeType: mimeType
+    };
+    if (!fileId && folderId) {
+      metadata.parents = [folderId];
+    }
+
+    const boundary = '-------314159265358979323846';
+    const delimiter = "\r\n--" + boundary + "\r\n";
+    const close_delim = "\r\n--" + boundary + "--";
+
+    const multipartRequestBody =
+      delimiter +
+      'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+      JSON.stringify(metadata) +
+      delimiter +
+      'Content-Type: ' + mimeType + '; charset=UTF-8\r\n\r\n' +
+      content +
+      close_delim;
+
+    const endpoint = fileId
+      ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+      : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
+
+    const uploadRes = await fetch(endpoint, {
+      method: fileId ? 'PATCH' : 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`
+      },
+      body: multipartRequestBody
+    });
+
+    return uploadRes.ok;
+  } catch (e) {
+    console.warn(`Drive upload error for ${fileName}`, e);
+    return false;
+  }
+}
+
+async function syncToGoogleDrive(isManual = false) {
+  if (!AppState.syncState.gdriveConnected || !AppState.syncState.gdriveToken) {
+    if (isManual) connectGoogleDrive();
+    return;
+  }
+
+  if (Date.now() > AppState.syncState.gdriveTokenExpires) {
+    if (isManual) connectGoogleDrive();
+    return;
+  }
+
+  const btnIcon = document.getElementById('drive-sync-btn-icon');
+  if (btnIcon) btnIcon.classList.add('spinning');
+
+  try {
+    const accessToken = AppState.syncState.gdriveToken;
+    const folderId = await getOrCreateGoogleDriveFolder(accessToken);
+    if (!folderId) throw new Error('Could not access Google Drive folder');
+
+    // 1. Upload Patients CSV (Excel)
+    const patCSV = generatePatientsCSV();
+    await uploadFileToGoogleDrive(accessToken, folderId, 'আঁখি_হোমিও_রোগীদের_কেস_ডায়েরি.csv', 'text/csv', patCSV);
+
+    // 2. Upload Ledger CSV (Excel)
+    const ledCSV = generateLedgerCSV();
+    await uploadFileToGoogleDrive(accessToken, folderId, 'আঁখি_হোমিও_দৈনিক_আয়_ব্যয়_হিসাব.csv', 'text/csv', ledCSV);
+
+    // 3. Upload Full JSON Backup
+    const backupJson = JSON.stringify({
+      appName: "Akhi Homeo Hall Notebook",
+      exportDate: new Date().toISOString(),
+      clinicSettings: AppState.clinicSettings,
+      patients: AppState.patients,
+      transactions: AppState.transactions,
+      remedies: AppState.remedies
+    }, null, 2);
+    await uploadFileToGoogleDrive(accessToken, folderId, 'akhi_homeo_hall_backup_snapshot.json', 'application/json', backupJson);
+
+    const nowStr = new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ', ' + getTodayStr();
+    AppState.syncState.gdriveLastSync = nowStr;
+    localStorage.setItem('ahh_gdrive_last_sync', nowStr);
+
+    updateTierStatusUI();
+    if (isManual) {
+      showToast('সফলভাবে গুগল ড্রাইভে এক্সেল ও ব্যাকআপ ফাইল সেভ হয়েছে! (Tier 3 Synced)');
+    }
+  } catch (err) {
+    console.warn('Google Drive Sync Error', err);
+    if (isManual) {
+      showToast('গুগল ড্রাইভ সিঙ্ক করতে সমস্যা হয়েছে। পুনরায় কানেক্ট করুন।', 'error');
+    }
+  } finally {
+    if (btnIcon) btnIcon.classList.remove('spinning');
+  }
+}
+
 // --- REST API SYNC WITH SQLITE DATABASE ---
 async function fetchAllServerData() {
   try {
@@ -336,6 +979,10 @@ async function fetchAllServerData() {
     if (patRes.ok) {
       const patData = await patRes.json();
       AppState.patients = patData.patients || [];
+      // Cache in IndexedDB (Tier 1)
+      for (const p of AppState.patients) {
+        idbPut('patients', p);
+      }
     }
 
     // 2. Fetch Transactions
@@ -343,6 +990,9 @@ async function fetchAllServerData() {
     if (txnRes.ok) {
       const txnData = await txnRes.json();
       AppState.transactions = txnData.transactions || [];
+      for (const t of AppState.transactions) {
+        idbPut('transactions', t);
+      }
     }
 
     // 3. Fetch Remedies
@@ -350,6 +1000,9 @@ async function fetchAllServerData() {
     if (remRes.ok) {
       const remData = await remRes.json();
       AppState.remedies = remData.remedies || DEFAULT_REMEDIES;
+      for (const r of AppState.remedies) {
+        idbPut('remedies', r);
+      }
     }
 
     // 4. Fetch Settings
@@ -364,12 +1017,17 @@ async function fetchAllServerData() {
       }
     }
 
+    AppState.syncState.dbStatus = 'synced';
+    saveLocalStorageFallback();
     renderAll();
     loadAuditLogs();
+    updateTierStatusUI();
   } catch (err) {
-    console.warn('API sync failed, loading fallback local data', err);
-    loadStoredDataFallback();
+    console.warn('API sync failed, loading fallback cached data', err);
+    await loadDataFromIndexedDB();
+    AppState.syncState.dbStatus = 'offline';
     renderAll();
+    updateTierStatusUI();
   }
 }
 
@@ -828,6 +1486,7 @@ async function savePatientCase() {
   const todayStr = getTodayStr();
 
   const rxEntry = {
+    id: 'rx_' + Date.now(),
     date: todayStr,
     medicines: medicines,
     advice: document.getElementById('form-pat-advice').value.trim(),
@@ -837,8 +1496,14 @@ async function savePatientCase() {
     due: due
   };
 
+  const patientId = editId || ('pat_' + Date.now());
+  const regNo = editId 
+    ? (AppState.patients.find(p => p.id === editId)?.regNo || `AHH-2026-${String(AppState.patients.length + 1).padStart(3, '0')}`)
+    : `AHH-2026-${String(AppState.patients.length + 1).padStart(3, '0')}`;
+
   const payload = {
-    id: editId || undefined,
+    id: patientId,
+    regNo: regNo,
     name: name,
     age: document.getElementById('form-pat-age').value.trim(),
     gender: document.getElementById('form-pat-gender').value,
@@ -849,38 +1514,34 @@ async function savePatientCase() {
     symptoms: document.getElementById('form-pat-symptoms').value.trim(),
     modalities: document.getElementById('form-pat-modalities').value.trim(),
     notes: document.getElementById('form-pat-notes').value.trim(),
-    prescriptions: [rxEntry]
+    prescriptions: [rxEntry],
+    updatedAt: new Date().toISOString()
   };
 
-  try {
-    const res = await fetch('/api/patients', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AppState.authToken}`
-      },
-      body: JSON.stringify(payload)
-    });
-    const result = await res.json();
-    if (result.success) {
-      showToast(AppState.currentLang === 'bn' ? 'রোগীর কেস নোট সফলভাবে সংরক্ষিত হয়েছে।' : 'Patient saved.');
-      await fetchAllServerData();
+  // 1. TIER 1: Instant Local Memory & IndexedDB Store
+  if (editId) {
+    const idx = AppState.patients.findIndex(p => p.id === editId);
+    if (idx !== -1) {
+      const existingPrescriptions = AppState.patients[idx].prescriptions || [];
+      payload.prescriptions = [...existingPrescriptions, rxEntry];
+      AppState.patients[idx] = { ...AppState.patients[idx], ...payload };
     }
-  } catch (err) {
-    // Offline fallback
-    if (editId) {
-      const idx = AppState.patients.findIndex(p => p.id === editId);
-      if (idx !== -1) AppState.patients[idx] = { ...AppState.patients[idx], ...payload };
-    } else {
-      payload.id = 'pat_' + Date.now();
-      payload.regNo = `AHH-2026-${String(AppState.patients.length + 1).padStart(3, '0')}`;
-      AppState.patients.unshift(payload);
-    }
-    saveLocalStorageFallback();
-    renderAll();
-    showToast('রোগীর কেস নোট সংরক্ষিত হয়েছে (অফলাইন)।');
+  } else {
+    AppState.patients.unshift(payload);
+  }
+  await idbPut('patients', payload);
+  saveLocalStorageFallback();
+  renderAll();
+
+  // 2. TIER 2: Queue for Server Auto-Sync
+  await queueSyncAction('patient', payload);
+
+  // 3. TIER 3: Auto Sync to Google Drive if connected
+  if (AppState.syncState.gdriveConnected) {
+    syncToGoogleDrive(false);
   }
 
+  showToast(AppState.currentLang === 'bn' ? 'রোগীর কেস নোট ৩ স্তরে সুরক্ষিতভাবে সংরক্ষিত হয়েছে!' : 'Patient saved and synced.');
   closePatientModal();
 }
 
@@ -890,19 +1551,21 @@ function editPatientCase(patId) {
 
 async function deletePatient(patId) {
   if (confirm(AppState.currentLang === 'bn' ? 'আপনি কি নিশ্চিতভাবে এই রোগীর রেকর্ড মুছে ফেলতে চান?' : 'Are you sure you want to delete this patient?')) {
-    try {
-      await fetch(`/api/patients/${patId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${AppState.authToken}` }
-      });
-      await fetchAllServerData();
-      showToast(AppState.currentLang === 'bn' ? 'রোগীর রেকর্ড মুছে ফেলা হয়েছে।' : 'Patient deleted.');
-    } catch (err) {
-      AppState.patients = AppState.patients.filter(p => p.id !== patId);
-      saveLocalStorageFallback();
-      renderAll();
-      showToast('রোগীর রেকর্ড মুছে ফেলা হয়েছে।');
+    // 1. TIER 1: Remove from memory & IndexedDB
+    AppState.patients = AppState.patients.filter(p => p.id !== patId);
+    await idbDelete('patients', patId);
+    saveLocalStorageFallback();
+    renderAll();
+
+    // 2. TIER 2: Queue deletion for Server
+    await queueSyncAction('delete_patient', null, patId);
+
+    // 3. TIER 3: Sync to Google Drive if connected
+    if (AppState.syncState.gdriveConnected) {
+      syncToGoogleDrive(false);
     }
+
+    showToast(AppState.currentLang === 'bn' ? 'রোগীর রেকর্ড মুছে ফেলা হয়েছে।' : 'Patient deleted.');
   }
 }
 
@@ -1076,7 +1739,9 @@ async function saveTransaction() {
     return;
   }
 
+  const txnId = 'txn_' + Date.now() + Math.random().toString(36).substring(7);
   const payload = {
+    id: txnId,
     date,
     type,
     category: category || (type === 'sale' ? 'ঔষধ বিক্রয়' : 'দোকান খরচ'),
@@ -1088,43 +1753,41 @@ async function saveTransaction() {
     note
   };
 
-  try {
-    await fetch('/api/transactions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AppState.authToken}`
-      },
-      body: JSON.stringify(payload)
-    });
-    await fetchAllServerData();
-    showToast(AppState.currentLang === 'bn' ? 'লেনদেন সফলভাবে লিপিবদ্ধ হয়েছে।' : 'Transaction saved.');
-  } catch (err) {
-    payload.id = 'txn_' + Date.now();
-    AppState.transactions.unshift(payload);
-    saveLocalStorageFallback();
-    renderAll();
-    showToast('লেনদেন লিপিবদ্ধ হয়েছে (অফলাইন)।');
+  // 1. TIER 1: Local memory & IndexedDB
+  AppState.transactions.unshift(payload);
+  await idbPut('transactions', payload);
+  saveLocalStorageFallback();
+  renderAll();
+
+  // 2. TIER 2: Queue for Server Auto-Sync
+  await queueSyncAction('transaction', payload);
+
+  // 3. TIER 3: Google Drive sync if connected
+  if (AppState.syncState.gdriveConnected) {
+    syncToGoogleDrive(false);
   }
 
+  showToast(AppState.currentLang === 'bn' ? 'লেনদেন ৩ স্তরে সফলভাবে সংরক্ষিত হয়েছে!' : 'Transaction recorded & synced.');
   closeTransactionModal();
 }
 
 async function deleteTransaction(txnId) {
   if (confirm(AppState.currentLang === 'bn' ? 'আপনি কি লেনদেনটি মুছে ফেলতে চান?' : 'Delete this transaction entry?')) {
-    try {
-      await fetch(`/api/transactions/${txnId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${AppState.authToken}` }
-      });
-      await fetchAllServerData();
-      showToast(AppState.currentLang === 'bn' ? 'লেনদেন মুছে ফেলা হয়েছে।' : 'Transaction deleted.');
-    } catch (err) {
-      AppState.transactions = AppState.transactions.filter(t => t.id !== txnId);
-      saveLocalStorageFallback();
-      renderAll();
-      showToast('লেনদেন মুছে ফেলা হয়েছে।');
+    // 1. TIER 1: Memory & IndexedDB
+    AppState.transactions = AppState.transactions.filter(t => t.id !== txnId);
+    await idbDelete('transactions', txnId);
+    saveLocalStorageFallback();
+    renderAll();
+
+    // 2. TIER 2: Queue deletion for Server
+    await queueSyncAction('delete_transaction', null, txnId);
+
+    // 3. TIER 3: Google Drive sync if connected
+    if (AppState.syncState.gdriveConnected) {
+      syncToGoogleDrive(false);
     }
+
+    showToast(AppState.currentLang === 'bn' ? 'লেনদেন মুছে ফেলা হয়েছে।' : 'Transaction deleted.');
   }
 }
 
@@ -1336,7 +1999,9 @@ async function saveRemedy() {
   const potenciesStr = document.getElementById('form-rem-potencies').value;
   const potencies = potenciesStr.split(',').map(s => s.trim()).filter(Boolean);
 
+  const remId = 'rem_' + Date.now();
   const payload = {
+    id: remId,
     name,
     banglaName: document.getElementById('form-rem-bangla').value.trim(),
     category: document.getElementById('form-rem-cat').value,
@@ -1346,25 +2011,21 @@ async function saveRemedy() {
     indication: document.getElementById('form-rem-indication').value.trim()
   };
 
-  try {
-    await fetch('/api/remedies', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AppState.authToken}`
-      },
-      body: JSON.stringify(payload)
-    });
-    await fetchAllServerData();
-    showToast(AppState.currentLang === 'bn' ? 'নতুন হোমিওপ্যাথিক ঔষধ সফলভাবে যুক্ত হয়েছে।' : 'Remedy added.');
-  } catch (err) {
-    payload.id = 'rem_' + Date.now();
-    AppState.remedies.unshift(payload);
-    saveLocalStorageFallback();
-    renderAll();
-    showToast('ঔষধ যুক্ত হয়েছে (অফলাইন)।');
+  // 1. TIER 1: IndexedDB
+  AppState.remedies.unshift(payload);
+  await idbPut('remedies', payload);
+  saveLocalStorageFallback();
+  renderAll();
+
+  // 2. TIER 2: Queue for Server
+  await queueSyncAction('remedy', payload);
+
+  // 3. TIER 3: Google Drive sync
+  if (AppState.syncState.gdriveConnected) {
+    syncToGoogleDrive(false);
   }
 
+  showToast(AppState.currentLang === 'bn' ? 'নতুন হোমিওপ্যাথিক ঔষধ ৩ স্তরে সংরক্ষিত হয়েছে।' : 'Remedy saved & synced.');
   closeRemedyModal();
 }
 

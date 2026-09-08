@@ -417,7 +417,102 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { success: true, logs });
     }
 
-    // 16. DATABASE FILE BACKUP DOWNLOAD
+    // 17. BATCH SYNC: Offline Mutation Sync
+    if (pathname === '/api/sync/batch' && req.method === 'POST') {
+      const session = validateSession(req);
+      if (!session) return sendJSON(res, 401, { success: false, message: 'Unauthorized' });
+
+      const { items } = await parseJSONBody(req);
+      if (!Array.isArray(items) || items.length === 0) {
+        return sendJSON(res, 200, { success: true, processed: 0 });
+      }
+
+      const now = new Date().toISOString();
+      let processed = 0;
+
+      for (const item of items) {
+        try {
+          if (item.type === 'patient') {
+            const data = item.data;
+            const patientId = data.id || ('pat_' + Date.now());
+            let regNo = data.regNo;
+            if (!regNo) {
+              const count = db.prepare('SELECT COUNT(*) as c FROM patients').get().c + 1;
+              regNo = `AHH-2026-${String(count).padStart(3, '0')}`;
+            }
+
+            db.prepare(`
+              INSERT INTO patients (id, reg_no, name, age, gender, mobile, blood_group, address, chief_complaint, symptoms, modalities, notes, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name, age = excluded.age, gender = excluded.gender, mobile = excluded.mobile,
+                blood_group = excluded.blood_group, address = excluded.address, chief_complaint = excluded.chief_complaint,
+                symptoms = excluded.symptoms, modalities = excluded.modalities, notes = excluded.notes, updated_at = excluded.updated_at
+            `).run(
+              patientId, regNo, data.name, data.age || '', data.gender || '', data.mobile || '',
+              data.bloodGroup || '', data.address || '', data.chiefComplaint || '',
+              data.symptoms || '', data.modalities || '', data.notes || '', now, now
+            );
+
+            if (data.prescriptions && data.prescriptions.length > 0) {
+              for (const rx of data.prescriptions) {
+                const rxId = rx.id || ('rx_' + Date.now() + Math.random().toString(36).substring(7));
+                const medJson = JSON.stringify(rx.medicines || []);
+                db.prepare(`
+                  INSERT OR REPLACE INTO prescriptions (id, patient_id, rx_date, medicines_json, advice, next_visit, total_fee, paid, due, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `).run(
+                  rxId, patientId, rx.date || now.slice(0, 10),
+                  medJson, rx.advice || '', rx.nextVisit || '',
+                  Number(rx.totalFee || 0), Number(rx.paid || 0), Number(rx.due || 0), now
+                );
+              }
+            }
+            processed++;
+          } else if (item.type === 'transaction') {
+            const t = item.data;
+            const id = t.id || ('txn_' + Date.now());
+            db.prepare(`
+              INSERT OR REPLACE INTO transactions (id, type, category, date, amount, paid, due, patient_id, patient_name, mobile, description, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+              id, t.type || 'sale', t.category || 'ঔষধ বিক্রয়',
+              t.date || now.slice(0, 10), Number(t.amount || 0),
+              Number(t.paid || 0), Number(t.due || 0),
+              t.patientId || null, t.patientName || '', t.mobile || '',
+              t.description || '', now
+            );
+            processed++;
+          } else if (item.type === 'remedy') {
+            const r = item.data;
+            const id = r.id || ('rem_' + Date.now());
+            const potJson = JSON.stringify(r.potencies || ['Q', '30C', '200C']);
+            db.prepare(`
+              INSERT OR REPLACE INTO remedies (id, name, bangla_name, category, rack, stock, potencies_json, indication, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+              id, r.name, r.banglaName || '', r.category || 'Dilution',
+              r.rack || 'A-01', Number(r.stock || 10), potJson, r.indication || '', now
+            );
+            processed++;
+          } else if (item.type === 'delete_patient') {
+            db.prepare('DELETE FROM prescriptions WHERE patient_id = ?').run(item.id);
+            db.prepare('DELETE FROM patients WHERE id = ?').run(item.id);
+            processed++;
+          } else if (item.type === 'delete_transaction') {
+            db.prepare('DELETE FROM transactions WHERE id = ?').run(item.id);
+            processed++;
+          }
+        } catch (itemErr) {
+          console.error('Batch sync item error:', itemErr);
+        }
+      }
+
+      logAudit('BATCH_SYNC', `Processed ${processed} offline queued items`, clientIp);
+      return sendJSON(res, 200, { success: true, processed });
+    }
+
+    // 18. DATABASE FILE BACKUP DOWNLOAD
     if (pathname === '/api/backup/db' && req.method === 'GET') {
       const session = validateSession(req);
       if (!session) return sendJSON(res, 401, { success: false, message: 'Unauthorized' });

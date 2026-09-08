@@ -1,0 +1,23 @@
+{
+  "name": "akhi-homeo-hall",
+  "version": "2.0.0",
+  "description": "Akhi Homeo Hall - Secure Digital Pharmacy & Clinical Prescription System with 3-Tier Storage & Google Drive Auto-Sync",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "keywords": [
+    "homeopathy",
+    "clinic",
+    "pharmacy",
+    "prescription",
+    "sqlite",
+    "google-drive-sync",
+    "pwa"
+  ],
+  "author": "Dr. Abu Hourira",
+  "license": "ISC"
+}
